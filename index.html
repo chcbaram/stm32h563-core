@@ -31,6 +31,10 @@
   button.small{padding:3px 10px;font-size:13px}
   button:disabled{opacity:.45;cursor:not-allowed}
   label{display:inline-flex;gap:6px;align-items:center;font-size:14px}
+  nav{display:flex;gap:4px;margin:0 0 14px;border-bottom:1px solid var(--line)}
+  nav button{border:none;background:none;border-bottom:2px solid transparent;
+             border-radius:0;padding:8px 14px;color:var(--muted)}
+  nav button.on{color:var(--fg);border-bottom-color:var(--accent);font-weight:600}
   input[type=file]{font-size:13px}
   select{font:inherit;font-size:14px;padding:3px 8px;border-radius:6px;border:1px solid var(--line);
          background:var(--bg);color:var(--fg)}
@@ -79,23 +83,14 @@
     </div>
   </div>
 
-  <!-- 펌웨어 -->
-  <div class="card">
-    <h2>펌웨어 업데이트 (앱)</h2>
-    <div class="row">
-      <label><input type="radio" name="fwSrc" value="repo" checked> 저장소
-        <select id="fwRepoSel"><option value="">(불러오는 중)</option></select></label>
-      <label><input type="radio" name="fwSrc" value="file"> 파일 <input type="file" id="fwFile" accept=".bin"></label>
-    </div>
-    <div class="row" style="margin-top:10px">
-      <button id="btnFw" class="primary" disabled>펌웨어 업데이트</button>
-      <span id="fwState" class="muted small"></span>
-    </div>
-    <progress id="fwProg" value="0" max="1" hidden></progress>
-  </div>
+  <!-- 탭 : 부트로더 / 펌웨어 -->
+  <nav id="tabs">
+    <button data-tab="boot" class="on">부트로더 업데이트</button>
+    <button data-tab="fw">펌웨어 업데이트</button>
+  </nav>
 
   <!-- 부트로더 -->
-  <div class="card">
+  <div class="card" id="tab-boot">
     <h2>부트로더 업데이트 (ROM DFU)</h2>
     <ol>
       <li>보드의 <b>BOOT0 버튼(S3)</b> 을 누른 채 <b>리셋 버튼(S2)</b> 을 눌렀다 뗀다. 그다음 BOOT0 을 뗀다</li>
@@ -118,6 +113,21 @@
       Windows 에서는 ROM DFU 장치에 WinUSB 드라이버가 붙어 있어야 WebUSB 로 열 수 있다 (ST 드라이버가 깔려 있으면 Zadig 등으로 바꾼다).
       쓰고 나면 보드가 새 부트로더로 실행된다. 앱은 그대로 남는다.
     </p>
+  </div>
+
+  <!-- 펌웨어 -->
+  <div class="card" id="tab-fw" hidden>
+    <h2>펌웨어 업데이트 (앱)</h2>
+    <div class="row">
+      <label><input type="radio" name="fwSrc" value="repo" checked> 저장소
+        <select id="fwRepoSel"><option value="">(불러오는 중)</option></select></label>
+      <label><input type="radio" name="fwSrc" value="file"> 파일 <input type="file" id="fwFile" accept=".bin"></label>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button id="btnFw" class="primary" disabled>펌웨어 업데이트</button>
+      <span id="fwState" class="muted small"></span>
+    </div>
+    <progress id="fwProg" value="0" max="1" hidden></progress>
   </div>
 
   <div class="card"><pre id="log"></pre></div>
@@ -306,6 +316,18 @@ async function loadManifest() {
     log('저장소 이미지 정보(web/bin/manifest.json)를 읽지 못했다', 'err');
   }
 }
+
+// 탭. 마지막에 고른 탭을 기억한다 (브라우저 저장소를 못 쓰면 기본 탭)
+function showTab(name) {
+  for (const b of document.querySelectorAll('#tabs button')) {
+    const on = b.dataset.tab === name;
+    b.classList.toggle('on', on);
+    $('tab-' + b.dataset.tab).hidden = !on;
+  }
+  try { localStorage.setItem('tab', name); } catch (e) { /* */ }
+}
+for (const b of document.querySelectorAll('#tabs button')) b.onclick = () => showTab(b.dataset.tab);
+try { const t = localStorage.getItem('tab'); if (t === 'fw' || t === 'boot') showTab(t); } catch (e) { /* */ }
 
 $('btnHid').onclick   = () => connect('HID');
 $('btnCdc').onclick   = () => connect('CDC');
