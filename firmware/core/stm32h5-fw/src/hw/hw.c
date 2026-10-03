@@ -37,6 +37,7 @@ bool hwInit(void)
 
   rtcInit();
   resetInit();
+  flashInit();
 
   logBoot(false);
   

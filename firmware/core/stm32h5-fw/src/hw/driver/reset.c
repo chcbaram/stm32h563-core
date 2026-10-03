@@ -7,6 +7,13 @@
 #ifdef _USE_HW_RESET
 
 
+// 백업 레지스터 카운터 = 매직(상위 16비트) | 값. 전원이 끊긴 뒤의 쓰레기 값을 걸러낸다
+#define RESET_CNT_MAGIC       0xA55A0000UL
+#define RESET_CNT_MASK        0x000000FFUL
+// ECC 오류 주소 = 매직(상위 8비트) | [20] 뱅크 | [15:0] 뱅크 안 쿼드워드 인덱스 (resetGetEccAddr)
+#define RESET_ECC_MAGIC       0xEC000000UL
+
+
 #if CLI_USE(HW_RESET)
 static void cliReset(cli_args_t *args);
 #endif
@@ -170,15 +177,15 @@ uint32_t resetCntLoad(void)
   // VBAT 이 없는 보드는 전원이 끊기면 백업 도메인이 날아가 부정값이 된다.
   // 매직으로 유효성을 판정한다.
   //
-  if ((reg & 0xFFFF0000UL) != HW_RESET_CNT_MAGIC)
+  if ((reg & 0xFFFF0000UL) != RESET_CNT_MAGIC)
     return 0;
 
-  return reg & HW_RESET_CNT_MASK;
+  return reg & RESET_CNT_MASK;
 }
 
 void resetCntSave(uint32_t cnt)
 {
-  rtcSetReg(HW_RTC_RESET_CNT, HW_RESET_CNT_MAGIC | (cnt & HW_RESET_CNT_MASK));
+  rtcSetReg(HW_RTC_RESET_CNT, RESET_CNT_MAGIC | (cnt & RESET_CNT_MASK));
 }
 #endif
 
@@ -241,15 +248,15 @@ uint32_t resetGetBootTry(void)
   uint32_t reg = 0;
 
   rtcGetReg(HW_RTC_BOOT_TRY, &reg);
-  if ((reg & 0xFFFF0000UL) != HW_RESET_CNT_MAGIC)
+  if ((reg & 0xFFFF0000UL) != RESET_CNT_MAGIC)
     return 0;
 
-  return reg & HW_RESET_CNT_MASK;
+  return reg & RESET_CNT_MASK;
 }
 
 void resetSetBootTry(uint32_t cnt)
 {
-  rtcSetReg(HW_RTC_BOOT_TRY, HW_RESET_CNT_MAGIC | (cnt & HW_RESET_CNT_MASK));
+  rtcSetReg(HW_RTC_BOOT_TRY, RESET_CNT_MAGIC | (cnt & RESET_CNT_MASK));
 }
 
 //-- 폴트 리셋 카운터
@@ -262,26 +269,26 @@ uint32_t resetGetFaultCount(void)
   uint32_t reg = 0;
 
   rtcGetReg(HW_RTC_FAULT_CNT, &reg);
-  if ((reg & 0xFFFF0000UL) != HW_RESET_CNT_MAGIC)
+  if ((reg & 0xFFFF0000UL) != RESET_CNT_MAGIC)
     return 0;
 
-  return reg & HW_RESET_CNT_MASK;
+  return reg & RESET_CNT_MASK;
 }
 
 void resetIncFaultCount(void)
 {
   uint32_t cnt = resetGetFaultCount();
 
-  if (cnt < HW_RESET_CNT_MASK)
+  if (cnt < RESET_CNT_MASK)
     cnt++;
 
-  rtcSetReg(HW_RTC_FAULT_CNT, HW_RESET_CNT_MAGIC | cnt);
+  rtcSetReg(HW_RTC_FAULT_CNT, RESET_CNT_MAGIC | cnt);
 }
 
 void resetConfirmBoot(void)
 {
   resetSetBootTry(0);
-  rtcSetReg(HW_RTC_FAULT_CNT, HW_RESET_CNT_MAGIC | 0);
+  rtcSetReg(HW_RTC_FAULT_CNT, RESET_CNT_MAGIC | 0);
 }
 
 bool resetGetEccAddr(uint32_t *p_addr)
@@ -289,7 +296,7 @@ bool resetGetEccAddr(uint32_t *p_addr)
   uint32_t reg = 0;
 
   rtcGetReg(HW_RTC_ECC_ADDR, &reg);
-  if ((reg & 0xFF000000UL) != HW_ECC_MAGIC)
+  if ((reg & 0xFF000000UL) != RESET_ECC_MAGIC)
     return false;
 
   // [20] bank(0=bank1, 1=bank2), [15:0] 뱅크 내 쿼드워드 오프셋 인덱스

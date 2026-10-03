@@ -30,7 +30,7 @@
 |---|---|---|
 | `RTC_BKP_DR3` | `HW_RTC_BOOT_MODE` | 부트 요청 플래그 (`MODE_BIT_BOOT`, `MODE_BIT_UPDATE`) |
 | `RTC_BKP_DR4` | `HW_RTC_RESET_BITS` | 리셋 원인 (부트로더가 읽고 지운 것을 앱에 넘긴다) |
-| `RTC_BKP_DR5` | `HW_RTC_RESET_CNT` | 리셋 버튼 클릭 수 (매직 `0xA55A` + 값) |
+| `RTC_BKP_DR5` | `HW_RTC_RESET_CNT` | 리셋 버튼 클릭 수 (매직 `0xA55A` + 값. 매직은 `reset.c` 안에 둔다) |
 | `RTC_BKP_DR6` | `HW_RTC_BOOT_TRY` | 부팅 확인 카운터 (슬롯 롤백 단계에서 쓴다) |
 | `RTC_BKP_DR7` | `HW_RTC_FAULT_CNT` | 폴트 횟수 (fault 단계에서 쓴다) |
 | `RTC_BKP_DR8` | `HW_RTC_ECC_ADDR` | ECC 오류 주소 |
