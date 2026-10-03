@@ -38,6 +38,7 @@ typedef struct
 
 
 static bool     drvUartRxFilter(uint8_t rx_data);
+static bool     drvUartCliFilter(uint8_t rx_data);
 static bool     drvUartOpen(void *args);
 static bool     drvUartClose(void *args);
 static uint32_t drvUartAvailable(void *args);
@@ -57,6 +58,7 @@ static uint16_t  f_length   = 0;
 static uint32_t  f_pre_time = 0;
 
 static uint32_t  act_time   = 0;            // 마지막으로 주고받은 시각 (보율 복귀 판정)
+static uint8_t   uart_ch    = 0;            // 필터가 맡은 UART 채널
 
 
 
@@ -70,6 +72,7 @@ bool drvUartInit(cmd_driver_t *p_driver, uint8_t ch, uint32_t baud)
 
   p_args->ch   = ch;
   p_args->baud = baud;
+  uart_ch      = ch;
 
   p_driver->open      = drvUartOpen;
   p_driver->close     = drvUartClose;
@@ -82,7 +85,7 @@ bool drvUartInit(cmd_driver_t *p_driver, uint8_t ch, uint32_t baud)
 
   // RX 필터는 cli 에 하나뿐이라 UART cmd 채널도 하나다
   qbufferCreate(&rx_q, rx_buf, sizeof(rx_buf));
-  cliSetRxFilter(drvUartRxFilter);
+  cliSetRxFilter(drvUartCliFilter);
   return true;
 }
 
@@ -90,12 +93,33 @@ void drvUartUpdate(cmd_driver_t *p_driver)
 {
   drv_uart_args_t *p_args = (drv_uart_args_t *)p_driver->args;
 
+
+  // CLI 가 다른 포트(USB CDC)에 가 있으면 cli 가 이 UART 를 읽지 않는다. 직접 읽어 필터에 넣는다.
+  // cmd 패킷이 아닌 바이트는 버린다 (CLI 가 없는 포트다).
+  if (cliGetPort() != p_args->ch)
+  {
+    while (uartAvailable(p_args->ch) > 0)
+    {
+      drvUartRxFilter(uartRead(p_args->ch));
+    }
+  }
+
   if (uartGetBaud(p_args->ch) != p_args->baud &&
       millis() - act_time >= DRV_UART_BAUD_TIMEOUT)
   {
     uartOpen(p_args->ch, p_args->baud);
     logPrintf("[  ] cmd uart baud -> %d (timeout)\n", (int)p_args->baud);
   }
+}
+
+// cli 가 자기 포트의 바이트로 부르는 필터. 그 포트가 이 UART 일 때만 가져간다.
+// CLI 가 USB CDC 로 옮겨 갔는데 가져가면, CDC 로 온 패킷을 UART 큐로 넣어 응답이 UART 로 나간다.
+bool drvUartCliFilter(uint8_t rx_data)
+{
+  if (cliGetPort() != uart_ch)
+    return false;
+
+  return drvUartRxFilter(rx_data);
 }
 
 bool drvUartRxFilter(uint8_t rx_data)

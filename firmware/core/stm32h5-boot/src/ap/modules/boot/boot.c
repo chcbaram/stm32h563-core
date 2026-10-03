@@ -116,7 +116,12 @@ bool bootJumpFirm(void)
    *   VTOR : 앱 SystemInit() 의 SCB->VTOR = &_fw_flash_begin
    */
   resetSetBootMode(0);
-  uartClose(HW_UART_CH_CLI);
+#ifdef _USE_HW_USB
+  // 호스트가 분리를 알게 USB 를 내린다. 앱이 같은 VID/PID 로 다시 열거된다 (w6300 bspDeInit 과 같다)
+  usbDeInit();
+  HAL_Delay(50);
+#endif
+  uartClose(HW_UART_CH_SWD);
   bspDeInit();
 
   (*jump_func)();

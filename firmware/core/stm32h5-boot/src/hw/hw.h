@@ -18,6 +18,8 @@ extern "C" {
 #include "flash.h"
 #include "qspi.h"
 #include "cmd.h"
+#include "usb.h"
+#include "cdc.h"
 #include "qbuffer.h"
 #include "util_core.h"
 

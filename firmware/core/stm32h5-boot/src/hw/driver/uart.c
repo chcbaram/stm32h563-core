@@ -58,6 +58,7 @@ static UART_HandleTypeDef huart1;
 const static uart_hw_t uart_hw_tbl[UART_MAX_CH] =
 {
   {"USART1 SWD   ", USART1, &huart1, &hdma_usart1_rx},   // ST-LINK VCP
+  {"USB CDC      ", NULL,   NULL,    NULL           },   // cdc.c 의 cdc_uart_driver 를 uartSetDriver 로 꽂는다
 };
 
 

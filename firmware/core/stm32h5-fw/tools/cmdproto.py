@@ -132,6 +132,81 @@ class SerialTransport:
   def set_baud(self, baud):
     self.ser.baudrate = baud
 
+  def close(self):
+    self.ser.close()
+
+
+#-- USB 장치 (펌웨어 usb_desc.c). pid.codes VID, 부트로더와 앱의 PID 가 다르다.
+USB_VID          = 0x1209
+USB_PID_BOOT     = 0xB563
+USB_PID_BOOT_MSC = 0xB564
+USB_PID_APP      = 0xB565
+USB_PIDS         = (USB_PID_BOOT, USB_PID_BOOT_MSC, USB_PID_APP)
+
+
+def find_hid():
+  """붙어 있는 보드의 HID (VID, PID). 부트로더든 앱이든."""
+  import hid
+  for pid in USB_PIDS:
+    if hid.enumerate(USB_VID, pid):
+      return USB_VID, pid
+  return None
+
+
+class HidTransport:
+  """HID cmd 채널 (w6300 과 같은 리포트 규약, 펌웨어 drv_hid.c).
+
+  HID 는 스트림이 아니라 64 바이트 고정 리포트다.
+    리포트 [0]  = 유효 바이트 수 (1~63)
+    리포트 [1:] = 페이로드
+  hidapi 의 write 는 맨 앞에 report id(0) 를 하나 더 받는다.
+  """
+  RPT     = 64
+  PAYLOAD = RPT - 1
+
+  def __init__(self):
+    import hid
+    found = find_hid()
+    if not found:
+      raise OSError("USB HID 장치를 찾지 못했다")
+    self.vid, self.pid = found
+    self.dev = hid.device()
+    self.dev.open(self.vid, self.pid)
+    self.dev.set_nonblocking(1)
+    self.buf = bytearray()
+
+  def close(self):
+    self.dev.close()
+
+  def flush_input(self):
+    while self.dev.read(self.RPT):
+      pass
+    self.buf.clear()
+
+  def write(self, b):
+    for i in range(0, len(b), self.PAYLOAD):
+      chunk = b[i:i+self.PAYLOAD]
+      rpt   = bytes([0x00, len(chunk)]) + chunk
+      rpt  += b"\x00" * (self.RPT + 1 - len(rpt))
+      self.dev.write(rpt)
+
+  def read(self, n):
+    t0 = time.time()
+    while not self.buf and time.time() - t0 < 0.3:
+      d = self.dev.read(self.RPT)
+      if d:
+        ln = d[0]
+        if 0 < ln <= self.PAYLOAD:
+          self.buf += bytes(d[1:1+ln])
+      else:
+        time.sleep(0.001)
+    out = bytes(self.buf[:n]) if n else bytes(self.buf)
+    del self.buf[:len(out)]
+    return out
+
+  def set_baud(self, baud):
+    pass
+
 
 #-- 펌웨어 cmd_boot.c 의 boot_info_t 와 바이트 단위로 맞아야 한다 (packed).
 #   앞 104 B 는 weact 와 같고, 뒤가 이 보드의 확장이다 (cmd_ver 부터).

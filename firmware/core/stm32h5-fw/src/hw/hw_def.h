@@ -12,14 +12,17 @@
 #define _USE_HW_FAULT
 #define _USE_HW_FLASH
 #define _USE_HW_QSPI
+#define _USE_HW_USB
+#define _USE_HW_CDC
 
 
 #define _USE_HW_LED
 #define      HW_LED_MAX_CH          1
 
 #define _USE_HW_UART
-#define      HW_UART_MAX_CH         1
+#define      HW_UART_MAX_CH         2
 #define      HW_UART_CH_SWD         _DEF_UART1    // 디버그 커넥터 J1 (ST-LINK VCP)
+#define      HW_UART_CH_USB         _DEF_UART2    // USB CDC (uartSetDriver 로 꽂는다)
 #define      HW_UART_CH_CLI         HW_UART_CH_SWD
 
 #define _USE_HW_CLI
@@ -89,6 +92,7 @@
 #define _USE_CLI_HW_QSPI            1
 #define _USE_CLI_HW_FAULT           1
 #define _USE_CLI_HW_MODULE          1
+#define _USE_CLI_HW_USB             1
 
 
 #endif

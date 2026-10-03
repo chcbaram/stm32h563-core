@@ -3,6 +3,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/tools")
 include(arm-none-eabi-gcc)
 
+# TinyUSB 의 tinyusb_target_add() 정의를 불러온다
+include("src/lib/tinyusb/src/CMakeLists.txt")
+
 
 # 프로젝트 이름은 최종 출력 파일 이름으로 사용된다.
 #
@@ -27,6 +30,9 @@ file(GLOB SRC_FILES CONFIGURE_DEPENDS
   src/ap/*.c
   src/bsp/*.c
   src/bsp/device/*.c
+
+  # TinyUSB DCD 포트 (STM32H5 USB_DRD_FS 는 stm32_fsdev 계열)
+  src/lib/tinyusb/src/portable/st/stm32_fsdev/dcd_stm32_fsdev.c
 )
 
 # 하위폴더에 있는 파일까지 포함한다.
@@ -65,6 +71,8 @@ add_executable(${EXECUTABLE}
   ${SRC_FILES_SPECIAL}
 )
 
+tinyusb_target_add(${EXECUTABLE})
+
 
 
 target_include_directories(${EXECUTABLE} PRIVATE 
@@ -79,6 +87,7 @@ target_include_directories(${EXECUTABLE} PRIVATE
   src/common/hw/include 
   src/hw
   src/hw/driver
+  src/hw/driver/usb
   src/lib
 
   src/lib/ST/CMSIS/Include

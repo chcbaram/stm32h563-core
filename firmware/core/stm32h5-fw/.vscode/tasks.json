@@ -52,6 +52,22 @@
       "problemMatcher": []
     },
     {
+      // USB CDC 로 내려받는다 (921600 으로 연다. 터미널이 그 포트를 열고 있으면 못 연다)
+      "label": "download-cdc",
+      "type": "shell",
+      "command": "python3 tools/download.py --via cdc",
+      "windows": { "command": "python tools/download.py --via cdc" },
+      "problemMatcher": []
+    },
+    {
+      // USB HID 로 내려받는다. 터미널이 CDC 를 CLI 로 쓰는 중에도 된다 (hidapi 필요)
+      "label": "download-hid",
+      "type": "shell",
+      "command": "python3 tools/download.py --via hid",
+      "windows": { "command": "python tools/download.py --via hid" },
+      "problemMatcher": []
+    },
+    {
       "label": "device-reset",
       "type": "shell",
       "command": "${userHome}/ST/STM32CubeCLT/STM32CubeProgrammer/bin/STM32_Programmer_CLI -c port=SWD mode=UR -rst",
