@@ -9,6 +9,7 @@
 #define _DEF_FIRMWATRE_VERSION    "V261003R1"
 #define _DEF_BOARD_NAME           "STM32H5-FW"
 
+#define _USE_HW_FLASH
 
 
 #define _USE_HW_LED
@@ -46,8 +47,6 @@
 #define      HW_RESET_BOOT          1
 #define      HW_RESET_DBLCLK_MS     300
 #define      HW_RESET_DBLCLK_CNT    2
-
-#define _USE_HW_FLASH
 
 
 //-- Flash Layout
