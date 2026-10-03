@@ -4,6 +4,9 @@
 > 관련: [11-project-skeleton.md](11-project-skeleton.md) (링커), [22-rtc-reset.md](22-rtc-reset.md)
 >
 > **상태: 보드에서 확인 (2026-10-03).** 지우기 / 쓰기 / 읽기, 재기록 거부, 보호 영역 거부.
+>
+> 이후 `flash.c` 가 주소로 QSPI 까지 가르게 됐다 (`0x9000_0000~`) → [24-qspi.md](24-qspi.md#4-flashc-에서-qspi-쓰기-주소로-가른다).
+> 아래 내장 플래시 함수는 `flashIntErase / Write / Read` 로 이름이 바뀌었다.
 
 ---
 

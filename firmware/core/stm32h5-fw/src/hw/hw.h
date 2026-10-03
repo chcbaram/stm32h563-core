@@ -15,6 +15,7 @@ extern "C" {
 #include "rtc.h"
 #include "reset.h"
 #include "flash.h"
+#include "qspi.h"
 #include "qbuffer.h"
 #include "util_core.h"
 

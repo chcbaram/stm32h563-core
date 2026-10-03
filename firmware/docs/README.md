@@ -7,9 +7,9 @@ STM32H563RIT6 (LQFP64) / STM32H563_CORE Rev 1 보드 기준 펌웨어 개발 기
 | | |
 |---|---|
 | 보드 | STM32H563_CORE Rev 1 (회로도 `hardware/stm32h563_core_v1.pdf`, 2026-09-15) |
-| 펌웨어 | `firmware/core/stm32h5-fw` — 골격 + LED + UART(VCP) + 로그 + CLI + RTC + 리셋 원인 + **내장 플래시**. 보드에서 동작 확인 |
+| 펌웨어 | `firmware/core/stm32h5-fw` — 골격 + LED + UART(VCP) + 로그 + CLI + RTC + 리셋 원인 + 내장 플래시 + **QSPI (W25Q256JV)**. 보드에서 동작 확인 |
 | 클럭 | HSE 25 MHz → PLL1 → **250 MHz** (VOS0) |
-| 빌드 | FLASH 75,680 B / 2046 KB (3.61%), RAM 15,112 B — arm-none-eabi-gcc 15.3.1 |
+| 빌드 | FLASH 86428 B / 2046 KB, RAM 15 KB — arm-none-eabi-gcc 15.3.1 |
 | 툴 | CubeCLT 1.22.0 에서 필요한 것만 `~/ST` 에 추출 (Programmer 2.23.0 / gdbserver 7.14.0). H563 SVD 추가 |
 | 디버거 | ST-LINK V2-1, FW `V2J47M34` — 굽기·gdb 디버깅 확인. Device ID `0x484`. **VCP = USART1 (J1)**, 115200 |
 
@@ -32,11 +32,10 @@ macOS / Windows 모두 같은 구성이다 → [10](10-dev-environment.md)
 부트로더와 앱이 함께 쓰는 드라이버를 앱에서 먼저 만들고 검증한 뒤 부트로더로 간다.
 
 1. LED 극성(active low) 눈 확인, 리셋 버튼 더블클릭 확인 ([20](20-led.md), [22](22-rtc-reset.md) 4절)
-2. QSPI 플래시 (U3 W25Q256JV 32 MB, OCTOSPI1 / XSPI HAL — H7S·H7R 프로젝트 참고)
-3. **UART 다운로드 — 부트로더 `core/stm32h5-boot` + 앱 분리** (단순형: BOOT 128 KB + TAG + 앱)
-4. fault 핸들러
-5. USB CDC (USB-C 로 CLI / 다운로드)
-6. 슬롯 핑퐁 / 롤백 (w6300 방식, bank2)
+2. **UART 다운로드 — 부트로더 `core/stm32h5-boot` + 앱 분리** (단순형: BOOT 128 KB + TAG + 앱)
+3. fault 핸들러 (매핑 안 된 주소 읽기로 멈춘 일이 있다 → [24](24-qspi.md) 6절)
+4. USB CDC (USB-C 로 CLI / 다운로드)
+5. 슬롯 핑퐁 / 롤백 (w6300 방식, bank2)
 
 ## 폴더 구성
 
@@ -95,6 +94,7 @@ firmware/
 | [21-uart-cli.md](21-uart-cli.md) | UART(USART1, ST-LINK VCP) + 로그 + CLI, **TX/RX 스왑**, GPDMA 원형 수신 | ✅ |
 | [22-rtc-reset.md](22-rtc-reset.md) | RTC(LSE) + 백업 레지스터 + 리셋 원인 / 더블클릭, `rtcIsTimeSet()` | ✅ (더블클릭 미확인) |
 | [23-flash.md](23-flash.md) | 내장 플래시 (8 KB 섹터, 쿼드워드, 재기록 거부, 보호 영역), 레이아웃 | ✅ |
+| [24-qspi.md](24-qspi.md) | QSPI W25Q256JV — 4 바이트 전용 명령, XIP 40 MB/s, **DCACHE1 무효화**, `flash.c` 주소 분기 | ✅ |
 
 ## 출처
 

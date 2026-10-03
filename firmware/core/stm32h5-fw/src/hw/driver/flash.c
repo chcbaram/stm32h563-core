@@ -1,4 +1,5 @@
 #include "flash.h"
+#include "qspi.h"
 
 
 #ifdef _USE_HW_FLASH
@@ -20,6 +21,11 @@
 #define FLASH_WRITE_SIZE          16                    // QUADWORD
 
 
+/* 주소 기반 플래시 접근 (N6 flash.c 와 같은 모양).
+     0x0800_0000 ~ 0x081F_FFFF  내장 플래시
+     0x9000_0000 ~ +32 MB       QSPI (W25Q256JV). qspiGetAddr() 를 빼서 칩 오프셋으로 넘긴다
+   영역(부트로더 / 앱 / 데이터)의 의미는 여기서 모른다. 위가 정한다. */
+
 static bool is_init       = false;
 static bool is_swap_bank  = false;
 
@@ -28,6 +34,12 @@ static bool flashInRange(uint32_t addr, uint32_t length);
 static bool flashIsProtected(uint32_t addr, uint32_t length);
 static void flashCacheInvalidate(void);
 static bool flashIsBlank(uint32_t addr, uint32_t length);
+static bool flashIntErase(uint32_t addr, uint32_t length);
+static bool flashIntWrite(uint32_t addr, uint8_t *p_data, uint32_t length);
+static bool flashIntRead(uint32_t addr, uint8_t *p_data, uint32_t length);
+#ifdef _USE_HW_QSPI
+static bool flashIsQspi(uint32_t addr, uint32_t length);
+#endif
 
 #if CLI_USE(HW_FLASH)
 static void cliFlash(cli_args_t *args);
@@ -156,7 +168,7 @@ bool flashIsBlank(uint32_t addr, uint32_t length)
   return true;
 }
 
-bool flashErase(uint32_t addr, uint32_t length)
+bool flashIntErase(uint32_t addr, uint32_t length)
 {
   bool     ret = true;
   uint32_t bank_s, sector_s;
@@ -227,7 +239,7 @@ bool flashErase(uint32_t addr, uint32_t length)
   return ret;
 }
 
-bool flashWrite(uint32_t addr, uint8_t *p_data, uint32_t length)
+bool flashIntWrite(uint32_t addr, uint8_t *p_data, uint32_t length)
 {
   bool     ret = true;
   uint32_t buf32[FLASH_WRITE_SIZE/4] __attribute__((aligned(16)));
@@ -294,7 +306,7 @@ bool flashWrite(uint32_t addr, uint8_t *p_data, uint32_t length)
   return ret;
 }
 
-bool flashRead(uint32_t addr, uint8_t *p_data, uint32_t length)
+bool flashIntRead(uint32_t addr, uint8_t *p_data, uint32_t length)
 {
   if (!flashInRange(addr, length))
     return false;
@@ -302,6 +314,42 @@ bool flashRead(uint32_t addr, uint8_t *p_data, uint32_t length)
   memcpy(p_data, (const void *)addr, length);
   return true;
 }
+
+bool flashErase(uint32_t addr, uint32_t length)
+{
+#ifdef _USE_HW_QSPI
+  if (flashIsQspi(addr, length))
+    return qspiErase(addr - qspiGetAddr(), length);
+#endif
+  return flashIntErase(addr, length);
+}
+
+bool flashWrite(uint32_t addr, uint8_t *p_data, uint32_t length)
+{
+#ifdef _USE_HW_QSPI
+  if (flashIsQspi(addr, length))
+    return qspiWrite(addr - qspiGetAddr(), p_data, length);
+#endif
+  return flashIntWrite(addr, p_data, length);
+}
+
+bool flashRead(uint32_t addr, uint8_t *p_data, uint32_t length)
+{
+#ifdef _USE_HW_QSPI
+  if (flashIsQspi(addr, length))
+    return qspiRead(addr - qspiGetAddr(), p_data, length);
+#endif
+  return flashIntRead(addr, p_data, length);
+}
+
+#ifdef _USE_HW_QSPI
+// 시작 주소가 QSPI 창 안이면 QSPI 로 보낸다. 끝이 창을 넘는지는 qspi 쪽이 검사한다.
+bool flashIsQspi(uint32_t addr, uint32_t length)
+{
+  (void)length;
+  return addr >= qspiGetAddr() && addr < qspiGetAddr() + qspiGetLength();
+}
+#endif
 
 
 #if CLI_USE(HW_FLASH)
@@ -320,6 +368,10 @@ void cliFlash(cli_args_t *args)
     cliPrintf("BOOT    : 0x%08X %d KB\n", FLASH_ADDR_BOOT,    FLASH_SIZE_BOOT/1024);
     cliPrintf("FIRM    : 0x%08X %d KB\n", FLASH_ADDR_FIRM,    FLASH_SIZE_FIRM/1024);
     cliPrintf("PROTECT : 0x%08X %d KB\n", FLASH_PROTECT_ADDR, FLASH_PROTECT_SIZE/1024);
+#ifdef _USE_HW_QSPI
+    cliPrintf("QSPI    : 0x%08X %d MB (%s)\n", (unsigned int)qspiGetAddr(), (int)(qspiGetLength()/1024/1024),
+              qspiIsInit() ? "OK" : "Fail");
+#endif
     ret = true;
   }
 

@@ -38,6 +38,7 @@ bool hwInit(void)
   rtcInit();
   resetInit();
   flashInit();
+  qspiInit();
 
   logBoot(false);
   

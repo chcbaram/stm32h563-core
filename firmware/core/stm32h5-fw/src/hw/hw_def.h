@@ -10,6 +10,7 @@
 #define _DEF_BOARD_NAME           "STM32H5-FW"
 
 #define _USE_HW_FLASH
+#define _USE_HW_QSPI
 
 
 #define _USE_HW_LED
@@ -30,6 +31,7 @@
 #define      HW_LOG_CH              HW_UART_CH_SWD
 #define      HW_LOG_BOOT_BUF_MAX    2048
 #define      HW_LOG_LIST_BUF_MAX    4096
+
 
 
 #define _USE_HW_RTC
@@ -78,6 +80,7 @@
 #define _USE_CLI_HW_RTC             1
 #define _USE_CLI_HW_RESET           1
 #define _USE_CLI_HW_FLASH           1
+#define _USE_CLI_HW_QSPI            1
 
 
 #endif
