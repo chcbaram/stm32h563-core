@@ -1,6 +1,7 @@
 # STM32H563_CORE 펌웨어 문서
 
 STM32H563RIT6 (LQFP64) / STM32H563_CORE Rev 1 보드 기준 펌웨어 개발 기록.
+프로젝트 소개는 [저장소 README](../../README.md), 웹페이지는 <https://chcbaram.github.io/stm32h563-core/>.
 
 ## 현재 상태 (2026-10-03)
 
@@ -39,11 +40,10 @@ macOS / Windows 모두 같은 구성이다 → [10](10-dev-environment.md)
 
 1. 리셋 버튼 더블클릭 확인, VSCode `Debug FW` / 태스크와 Windows 확인
 2. pid.codes 에 PID 등록 (`1209:B563` 부트로더 / `B565` 앱, weact 의 B750~B752 도) → [27](27-usb.md) 6절
-3. **웹페이지 (GitHub Pages)** — WebHID / Web Serial 로 앱 업데이트 (w6300 `web/` 참고)
-4. **WebUSB + ROM DFU 로 부트로더 업데이트** (BOOT0 버튼 S3 + 리셋)
-5. 슬롯 핑퐁 / 롤백 (w6300 방식, bank2)
-6. MSC — 부트로더 UF2 (요청할 때만, PID B564), 앱 MSC (QSPI / 확장보드 SD, PID B566) → [27](27-usb.md) 7절 (아직 하지 않는다)
-7. (판단) QSPI 간접 읽기 개선 — XIP / GPDMA ([24](24-qspi.md))
+3. **웹페이지 브라우저 시험** — HID / CDC 펌웨어 업데이트, ROM DFU 부트로더 업데이트 → [28](28-web.md) 5절
+4. 슬롯 핑퐁 / 롤백 (w6300 방식, bank2)
+5. MSC — 부트로더 UF2 (요청할 때만, PID B564), 앱 MSC (QSPI / 확장보드 SD, PID B566) → [27](27-usb.md) 7절 (아직 하지 않는다)
+6. (판단) QSPI 간접 읽기 개선 — XIP / GPDMA ([24](24-qspi.md))
 
 ## 폴더 구성
 
@@ -104,6 +104,7 @@ firmware/
 | [23-flash.md](23-flash.md) | 내장 플래시 (8 KB 섹터, 쿼드워드, 재기록 거부, 보호 영역), 레이아웃 | ✅ |
 | [24-qspi.md](24-qspi.md) | QSPI W25Q256JV — 4 바이트 전용 명령, XIP 40 MB/s, **DCACHE1 무효화**, `flash.c` 주소 분기 | ✅ |
 | [25-fault.md](25-fault.md) | 폴트 기록 — naked 진입부, CFSR/BFAR 원인, `.noinit` 에 남기고 리셋 | ✅ |
+| [28-web.md](28-web.md) | **웹페이지** — WebHID / Web Serial 펌웨어 업데이트, WebUSB ROM DFU 부트로더 업데이트, 저장소 이미지(`web/bin`) | 🟡 배포, 브라우저 시험 남음 |
 | [27-usb.md](27-usb.md) | **USB CDC + HID (TinyUSB)** — CDC 주인을 보율로 가름, CDC / HID 다운로드, CLI 쓰면서 HID 업데이트, 웹용 VID/PID 검토 | ✅ |
 | [26-bootloader.md](26-bootloader.md) | **부트로더 + UART 다운로드** — 부트로더 256 KB, TAG 커밋, 2 Mbps 1 초, 앱 launch 디버깅, `-Og` | ✅ |
 

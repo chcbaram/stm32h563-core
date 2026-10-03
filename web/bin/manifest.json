@@ -1,0 +1,27 @@
+{
+  "generated": "2026-10-03 23:05",
+  "boot": {
+    "file": "boot/stm32h5-boot.bin",
+    "name": "STM32H5-BOOT",
+    "version": "V261003R1",
+    "addr": "0x08000000",
+    "size": 88360,
+    "crc16": "0x7AC4",
+    "sha256": "8e7ca033f1b3751829839ae4bddc50767506a889cef8a7fd7b2bb25685815af7",
+    "method": "dfu"
+  },
+  "firmwares": [
+    {
+      "id": "core",
+      "title": "코어보드",
+      "file": "core/stm32h5-fw.bin",
+      "name": "STM32H5-FW",
+      "version": "V261003R1",
+      "addr": "0x08040400",
+      "size": 84840,
+      "crc16": "0xB9B9",
+      "sha256": "3e66f756fb5138520a9a3cec6cf34385e110dd55305e817e444108341b971614",
+      "method": "cmd"
+    }
+  ]
+}

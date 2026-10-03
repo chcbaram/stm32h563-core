@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>STM32H563 Core</title>
+<style>
+  :root{
+    --bg:#ffffff; --fg:#1f2328; --muted:#59636e; --line:#d1d9e0;
+    --accent:#0969da; --ok:#1a7f37; --err:#cf222e; --card:#f6f8fa;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{ --bg:#0d1117; --fg:#e6edf3; --muted:#9198a1; --line:#3d444d;
+           --accent:#4493f8; --ok:#3fb950; --err:#f85149; --card:#151b23; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+       font:15px/1.6 ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif}
+  .wrap{max-width:820px;margin:0 auto;padding:28px 20px 64px}
+  h1{font-size:21px;margin:0 0 2px}
+  h2{font-size:16px;margin:0 0 8px}
+  .sub{color:var(--muted);margin:0 0 22px;font-size:13.5px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:8px;
+        padding:14px 16px;margin:0 0 14px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  /* .row 의 display:flex 가 [hidden] 의 display:none 을 특이도로 이긴다 (w6300 에서 겪음) */
+  [hidden]{display:none !important}
+  button{font:inherit;padding:7px 15px;border-radius:6px;border:1px solid var(--line);
+         background:var(--bg);color:var(--fg);cursor:pointer}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  button.small{padding:3px 10px;font-size:13px}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  label{display:inline-flex;gap:6px;align-items:center;font-size:14px}
+  input[type=file]{font-size:13px}
+  select{font:inherit;font-size:14px;padding:3px 8px;border-radius:6px;border:1px solid var(--line);
+         background:var(--bg);color:var(--fg)}
+  progress{width:100%;height:8px;margin-top:10px}
+  #log{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;
+       white-space:pre-wrap;max-height:260px;overflow:auto;margin:0}
+  .ok{color:var(--ok)} .err{color:var(--err)} .muted{color:var(--muted)}
+  .small{font-size:13px}
+  .warn{border-left:3px solid var(--accent);padding-left:12px;margin:0 0 18px;
+        color:var(--muted);font-size:13.5px}
+  .badge{font-size:12px;font-weight:700;padding:2px 9px;border-radius:999px;
+         border:1px solid var(--line);color:#fff}
+  .badge.boot{background:#8367c7;border-color:#8367c7}
+  .badge.app{background:var(--ok);border-color:var(--ok)}
+  ol{margin:4px 0 10px;padding-left:22px;font-size:14px}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>STM32H563 Core</h1>
+  <p class="sub">브라우저에서 보드에 직접 연결해 펌웨어와 부트로더를 업데이트한다.
+    <a href="https://github.com/chcbaram/stm32h563-core">GitHub</a></p>
+
+  <p class="warn" id="warnText">
+    Chrome 또는 Edge 가 필요하다 (WebHID · Web Serial · WebUSB).
+    보드의 USB-C 를 연결한다. 펌웨어가 돌고 있어도 업데이트할 수 있다.
+  </p>
+
+  <!-- 연결 -->
+  <div class="card">
+    <h2>보드 연결</h2>
+    <div class="row">
+      <button id="btnHid" class="primary">HID 로 연결</button>
+      <button id="btnCdc">CDC 로 연결</button>
+      <button id="btnClose" disabled>끊기</button>
+      <span id="devState" class="muted">연결되지 않음</span>
+      <span id="devMode" class="badge" hidden></span>
+    </div>
+    <p class="muted small" style="margin:8px 0 0">
+      HID 는 터미널이 CDC 를 CLI 로 쓰고 있어도 된다. CDC 는 다른 프로그램(터미널)이 그 포트를 열고 있으면 열 수 없다.
+    </p>
+    <div class="row" id="bootAskRow" hidden style="margin-top:10px">
+      <span class="small">보드가 부트로더로 바뀌었다. 처음 한 번 목록에서 <b>STM32H5-BOOT</b> 를 골라 줄 것</span>
+      <button id="btnBootAsk" class="primary small">부트로더 고르기</button>
+    </div>
+  </div>
+
+  <!-- 펌웨어 -->
+  <div class="card">
+    <h2>펌웨어 업데이트 (앱)</h2>
+    <div class="row">
+      <label><input type="radio" name="fwSrc" value="repo" checked> 저장소
+        <select id="fwRepoSel"><option value="">(불러오는 중)</option></select></label>
+      <label><input type="radio" name="fwSrc" value="file"> 파일 <input type="file" id="fwFile" accept=".bin"></label>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button id="btnFw" class="primary" disabled>펌웨어 업데이트</button>
+      <span id="fwState" class="muted small"></span>
+    </div>
+    <progress id="fwProg" value="0" max="1" hidden></progress>
+  </div>
+
+  <!-- 부트로더 -->
+  <div class="card">
+    <h2>부트로더 업데이트 (ROM DFU)</h2>
+    <ol>
+      <li>보드의 <b>BOOT0 버튼(S3)</b> 을 누른 채 <b>리셋 버튼(S2)</b> 을 눌렀다 뗀다. 그다음 BOOT0 을 뗀다</li>
+      <li>STM32 의 시스템 부트로더(ROM)가 USB DFU 장치(<code>0483:DF11</code>)로 나타난다</li>
+      <li>아래 버튼을 누르고 목록에서 <b>DFU in FS Mode</b> 를 고른다</li>
+    </ol>
+    <div class="row">
+      <label><input type="radio" name="bootSrc" value="repo" checked> 저장소 <span id="bootRepoVer" class="muted">-</span></label>
+      <label><input type="radio" name="bootSrc" value="file"> 파일 <input type="file" id="bootFile" accept=".bin"></label>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <label><input type="checkbox" id="bootVerify" checked> 다 쓴 뒤 읽어서 확인</label>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button id="btnDfu" class="primary">DFU 장치 연결 후 부트로더 쓰기</button>
+      <span id="bootState" class="muted small"></span>
+    </div>
+    <progress id="bootProg" value="0" max="1" hidden></progress>
+    <p class="muted small" style="margin:8px 0 0">
+      Windows 에서는 ROM DFU 장치에 WinUSB 드라이버가 붙어 있어야 WebUSB 로 열 수 있다 (ST 드라이버가 깔려 있으면 Zadig 등으로 바꾼다).
+      쓰고 나면 보드가 새 부트로더로 실행된다. 앱은 그대로 남는다.
+    </p>
+  </div>
+
+  <div class="card"><pre id="log"></pre></div>
+</div>
+
+<script type="module">
+import { requestChannel, USB_PID_BOOT, USB_PID_BOOT_MSC } from './web/proto.js';
+import { BOOT_CMD, parseInfo, downloadFirmware, readImageVer, DEV_MODE_BOOT } from './web/boot.js';
+import { DfuDevice } from './web/dfu.js';
+
+const $ = (id) => document.getElementById(id);
+const BIN = './web/bin/';
+
+let ch = null;            // 열린 cmd 채널
+let manifest = null;
+let busy = false;
+
+function log(msg, cls) {
+  const line = document.createElement('div');
+  if (cls) line.className = cls;
+  line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  $('log').appendChild(line);
+  $('log').scrollTop = $('log').scrollHeight;
+}
+
+function setBusy(b) {
+  busy = b;
+  refreshButtons();
+}
+
+function refreshButtons() {
+  $('btnHid').disabled   = busy || !('hid' in navigator);
+  $('btnCdc').disabled   = busy || !('serial' in navigator);
+  $('btnClose').disabled = busy || !ch;
+  $('btnFw').disabled    = busy || !ch;
+  $('btnDfu').disabled   = busy || !('usb' in navigator);
+}
+
+function showDevice(info) {
+  if (!ch || !info) {
+    $('devState').textContent = '연결되지 않음';
+    $('devState').className = 'muted';
+    $('devMode').hidden = true;
+    return;
+  }
+  $('devState').textContent = `${ch.kind} · ${info.name} ${info.version}`;
+  $('devState').className = '';
+  $('devMode').hidden = false;
+  $('devMode').textContent = info.modeStr;
+  $('devMode').className = 'badge ' + (info.mode === DEV_MODE_BOOT ? 'boot' : 'app');
+}
+
+async function connect(kind) {
+  try {
+    if (ch) { await ch.close(); ch = null; }
+    ch = await requestChannel(kind);
+    if (!ch) return;
+    const info = parseInfo((await ch.request(BOOT_CMD.INFO, null, 2000)).data);
+    showDevice(info);
+    log(`연결 : ${ch.kind} ${info.name} ${info.version} [${info.modeStr}]`, 'ok');
+  } catch (e) {
+    if (e.name !== 'NotFoundError') log(`연결 실패 : ${e.message}`, 'err');
+    if (ch) { await ch.close(); ch = null; }
+    showDevice(null);
+  }
+  refreshButtons();
+}
+
+// 부트로더 장치 권한이 없을 때 사용자가 고르게 한다 (requestDevice 는 사용자 클릭 안에서만 된다)
+function askBoot(kind) {
+  return new Promise((resolve) => {
+    $('bootAskRow').hidden = false;
+    $('btnBootAsk').onclick = async () => {
+      $('bootAskRow').hidden = true;
+      try { resolve(await requestChannel(kind, [USB_PID_BOOT, USB_PID_BOOT_MSC])); }
+      catch (e) { resolve(null); }
+    };
+  });
+}
+
+async function sha256Hex(buf) {
+  const h = await crypto.subtle.digest('SHA-256', buf);
+  return [...new Uint8Array(h)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// 저장소(web/bin) 또는 파일에서 이미지를 가져온다
+//   m : manifest 항목 (부트로더는 manifest.boot, 펌웨어는 manifest.firmwares 중 고른 보드)
+async function loadImage(m, srcName, fileInput) {
+  const src = document.querySelector(`input[name=${srcName}]:checked`).value;
+  if (src === 'file') {
+    const f = fileInput.files[0];
+    if (!f) throw new Error('파일을 고를 것');
+    return { name: f.name, data: new Uint8Array(await f.arrayBuffer()) };
+  }
+  if (!m) throw new Error('저장소 이미지 정보(manifest.json)가 없다');
+  const res = await fetch(BIN + m.file, { cache: 'no-cache' });
+  if (!res.ok) throw new Error(`${m.file} 를 받지 못했다 (HTTP ${res.status})`);
+  const buf = await res.arrayBuffer();
+  if ((await sha256Hex(buf)) !== m.sha256) throw new Error(`${m.file} 의 SHA-256 이 manifest 와 다르다`);
+  return { name: `${m.file} (${m.title ? m.title + ' ' : ''}${m.version})`, data: new Uint8Array(buf) };
+}
+
+async function updateFirmware() {
+  if (!ch) return;
+  setBusy(true);
+  $('fwProg').hidden = false; $('fwProg').value = 0;
+  try {
+    const fwItem = manifest && manifest.firmwares.find(f => f.id === $('fwRepoSel').value);
+    const img = await loadImage(fwItem, 'fwSrc', $('fwFile'));
+    const ver = readImageVer(img.data);
+    if (!ver) throw new Error('앱 bin 이 아니다 (firm_ver_t 없음)');
+    if (ver.addr !== 0x08040400) throw new Error(`앱 주소가 0x${ver.addr.toString(16)} 다 (0x08040400 이어야 한다)`);
+    log(`보낼 것 : ${img.name}  ${ver.name} ${ver.version}  ${(img.data.length / 1024).toFixed(1)} KB`);
+    $('fwState').textContent = '업데이트 중…';
+
+    const kind = ch.kind;
+    const t0 = performance.now();
+    await downloadFirmware(ch, img.data, {
+      log: (m) => log(m),
+      progress: (p) => { $('fwProg').value = p; },
+      askBoot: () => askBoot(kind),
+    });
+    ch = null;
+    showDevice(null);
+    log(`완료 : ${((performance.now() - t0) / 1000).toFixed(2)} s. 앱으로 다시 붙으려면 연결을 누른다`, 'ok');
+    $('fwState').textContent = '완료';
+  } catch (e) {
+    log(`업데이트 실패 : ${e.message}`, 'err');
+    $('fwState').textContent = '실패';
+    if (ch) { try { await ch.close(); } catch (x) { /* */ } ch = null; showDevice(null); }
+  }
+  $('bootAskRow').hidden = true;
+  setBusy(false);
+}
+
+async function updateBootloader() {
+  setBusy(true);
+  $('bootProg').hidden = false; $('bootProg').value = 0;
+  let dfu = null;
+  try {
+    const img = await loadImage(manifest && manifest.boot, 'bootSrc', $('bootFile'));
+    const ver = readImageVer(img.data);
+    if (!ver) throw new Error('부트로더 bin 이 아니다 (firm_ver_t 없음)');
+    if (ver.addr !== 0x08000000) throw new Error(`부트로더 주소가 0x${ver.addr.toString(16)} 다 (0x08000000 이어야 한다)`);
+    if (img.data.length > 256 * 1024) throw new Error('부트로더가 256 KB 를 넘는다');
+    log(`보낼 것 : ${img.name}  ${ver.name} ${ver.version}  ${(img.data.length / 1024).toFixed(1)} KB`);
+
+    dfu = await DfuDevice.request();
+    log(`DFU 연결 : ${dfu.dev.productName || 'DFU'}  ${dfu.altName}`, 'ok');
+    $('bootState').textContent = '쓰는 중…';
+
+    const t0 = performance.now();
+    await dfu.write(0x08000000, img.data, {
+      log: (m) => log(m),
+      progress: (p, what) => { $('bootProg').value = p; $('bootState').textContent = `${what}…`; },
+    }, $('bootVerify').checked);
+    await dfu.leave(0x08000000);
+    log(`완료 : ${((performance.now() - t0) / 1000).toFixed(2)} s. 보드가 새 부트로더로 실행된다`, 'ok');
+    $('bootState').textContent = '완료';
+  } catch (e) {
+    if (e.name === 'NotFoundError') log('DFU 장치를 고르지 않았다. BOOT0(S3) 을 누른 채 리셋했는지 볼 것');
+    else log(`부트로더 업데이트 실패 : ${e.message}`, 'err');
+    $('bootState').textContent = '실패';
+  }
+  if (dfu) await dfu.close();
+  setBusy(false);
+}
+
+async function loadManifest() {
+  try {
+    const res = await fetch(BIN + 'manifest.json', { cache: 'no-cache' });
+    manifest = await res.json();
+    // 펌웨어는 보드마다 하나 (코어보드, 확장보드 …). tools/release.py 의 FIRMWARES 목록에서 온다
+    const sel = $('fwRepoSel');
+    sel.innerHTML = '';
+    for (const f of manifest.firmwares || []) {
+      const o = document.createElement('option');
+      o.value = f.id;
+      o.textContent = `${f.title} — ${f.name} ${f.version}`;
+      sel.appendChild(o);
+    }
+    if (!sel.options.length) sel.innerHTML = '<option value="">(없음)</option>';
+    const b = manifest.boot;
+    $('bootRepoVer').textContent = b ? `${b.name} ${b.version}` : '-';
+  } catch (e) {
+    log('저장소 이미지 정보(web/bin/manifest.json)를 읽지 못했다', 'err');
+  }
+}
+
+$('btnHid').onclick   = () => connect('HID');
+$('btnCdc').onclick   = () => connect('CDC');
+$('btnClose').onclick = async () => { if (ch) await ch.close(); ch = null; showDevice(null); refreshButtons(); log('끊음'); };
+$('btnFw').onclick    = updateFirmware;
+$('btnDfu').onclick   = updateBootloader;
+
+const missing = ['hid', 'serial', 'usb'].filter(k => !(k in navigator));
+if (missing.length) {
+  $('warnText').innerHTML += `<br><b class="err">이 브라우저는 ${missing.map(k => ({hid:'WebHID',serial:'Web Serial',usb:'WebUSB'})[k]).join(', ')} 를 지원하지 않는다.</b>`;
+}
+if (navigator.hid)    navigator.hid.addEventListener('disconnect', (e) => { if (ch && ch.dev === e.device && !busy) { ch = null; showDevice(null); refreshButtons(); log('장치가 빠졌다'); } });
+refreshButtons();
+loadManifest();
+</script>
+</body>
+</html>
