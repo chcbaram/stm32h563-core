@@ -1,0 +1,39 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      // 구성과 빌드를 ; 로 잇는다 (&& 는 PowerShell 5.1 에서 안 된다).
+      //   -j20 은 코어 수를 덮는 상수다. 숫자 없는 -j 는 make 에서 "제한 없음" 이라 쓰지 않는다.
+      //   Windows 는 MinGW make 로 빌드한다 (기본 생성기는 Visual Studio 라 지정해야 한다).
+      "label": "build-build",
+      "type": "shell",
+      "command": "cmake -S . -B build; cmake --build build -j20",
+      "windows": { "command": "cmake -S . -B build -G 'MinGW Makefiles'; cmake --build build -j20" },
+      "problemMatcher": ["$gcc"],
+      "group": { "kind": "build", "isDefault": true }
+    },
+    {
+      "label": "build-clean",
+      "type": "shell",
+      "command": "cmake --build build --target clean",
+      "problemMatcher": []
+    },
+    {
+      // ST-LINK(SWD) 로 0x08000000 에 쓰고 리셋한다. 빌드는 하지 않는다.
+      //   macOS : CubeCLT 에서 필요한 것만 ~/ST 에 추출하고 ~/ST/STM32CubeCLT 링크로 참조한다.
+      //   Windows : 설치 프로그램이 만드는 STM32CLT_PATH 환경변수로 참조한다.
+      "label": "flash-stlink",
+      "type": "shell",
+      "command": "${userHome}/ST/STM32CubeCLT/STM32CubeProgrammer/bin/STM32_Programmer_CLI -c port=SWD mode=UR -w build/stm32h5-fw.bin 0x08000000 -v -rst",
+      "windows": { "command": "& '${env:STM32CLT_PATH}/STM32CubeProgrammer/bin/STM32_Programmer_CLI.exe' -c port=SWD mode=UR -w build/stm32h5-fw.bin 0x08000000 -v -rst" },
+      "problemMatcher": []
+    },
+    {
+      "label": "device-reset",
+      "type": "shell",
+      "command": "${userHome}/ST/STM32CubeCLT/STM32CubeProgrammer/bin/STM32_Programmer_CLI -c port=SWD mode=UR -rst",
+      "windows": { "command": "& '${env:STM32CLT_PATH}/STM32CubeProgrammer/bin/STM32_Programmer_CLI.exe' -c port=SWD mode=UR -rst" },
+      "problemMatcher": []
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      // 빌드 → ELF 를 쓰고 → main 에서 멈춘다.
+      "name": "Debug FW",
+      "cwd": "${workspaceRoot}",
+      "executable": "./build/stm32h5-fw.elf",
+      "request": "launch",
+      "type": "cortex-debug",
+      "servertype": "stlink",
+      "serverArgs": ["-m", "1"],
+      "runToEntryPoint": "main",
+      "showDevDebugOutput": "none",
+      "preLaunchTask": "build-build",
+      "osx": {
+        "serverpath": "${userHome}/ST/STM32CubeCLT/STLink-gdb-server/bin/ST-LINK_gdbserver",
+        "stm32cubeprogrammer": "${userHome}/ST/STM32CubeCLT/STM32CubeProgrammer/bin",
+        "svdFile": "${userHome}/ST/STM32CubeCLT/STMicroelectronics_CMSIS_SVD/STM32H563.svd"
+      },
+      "windows": {
+        "serverpath": "${env:STM32CLT_PATH}/STLink-gdb-server/bin/ST-LINK_gdbserver.exe",
+        "stm32cubeprogrammer": "${env:STM32CLT_PATH}/STM32CubeProgrammer/bin",
+        "svdFile": "${env:STM32CLT_PATH}/STMicroelectronics_CMSIS_SVD/STM32H563.svd"
+      }
+    },
+    {
+      // 돌고 있는 보드에 리셋 없이 붙는다. 쓰기는 하지 않는다.
+      //   executable 은 심볼용이다. 보드에서 돌고 있는 펌웨어와 같은 ELF 여야 한다.
+      "name": "Attach FW",
+      "cwd": "${workspaceRoot}",
+      "executable": "./build/stm32h5-fw.elf",
+      "request": "attach",
+      "type": "cortex-debug",
+      "servertype": "stlink",
+      "serverArgs": ["-m", "1"],
+      "showDevDebugOutput": "none",
+      "osx": {
+        "serverpath": "${userHome}/ST/STM32CubeCLT/STLink-gdb-server/bin/ST-LINK_gdbserver",
+        "stm32cubeprogrammer": "${userHome}/ST/STM32CubeCLT/STM32CubeProgrammer/bin",
+        "svdFile": "${userHome}/ST/STM32CubeCLT/STMicroelectronics_CMSIS_SVD/STM32H563.svd"
+      },
+      "windows": {
+        "serverpath": "${env:STM32CLT_PATH}/STLink-gdb-server/bin/ST-LINK_gdbserver.exe",
+        "stm32cubeprogrammer": "${env:STM32CLT_PATH}/STM32CubeProgrammer/bin",
+        "svdFile": "${env:STM32CLT_PATH}/STMicroelectronics_CMSIS_SVD/STM32H563.svd"
+      }
+    }
+  ]
+}
