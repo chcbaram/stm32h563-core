@@ -136,12 +136,12 @@ class SerialTransport:
     self.ser.close()
 
 
-#-- USB 장치 (펌웨어 usb_desc.c). pid.codes VID, 부트로더와 앱의 PID 가 다르다.
+#-- USB 장치 (펌웨어 usb_desc.c). pid.codes VID. PID 는 USB 구성을 따른다.
+#   B563 = CDC + HID (부트로더 · 앱 공통). 모드는 INFO 의 mode 로 안다.
+#   B564 / B566 = MSC 를 더한 구성 (예약), B565 = 예약
 USB_VID          = 0x1209
-USB_PID_BOOT     = 0xB563
-USB_PID_BOOT_MSC = 0xB564
-USB_PID_APP      = 0xB565
-USB_PIDS         = (USB_PID_BOOT, USB_PID_BOOT_MSC, USB_PID_APP)
+USB_PID          = 0xB563
+USB_PIDS         = (0xB563, 0xB564, 0xB565, 0xB566)
 
 
 def find_hid():

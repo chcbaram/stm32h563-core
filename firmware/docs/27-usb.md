@@ -56,21 +56,21 @@ w6300 은 부트로더가 TinyUSB, 앱이 ST USB Device Library(composite) 였�
 | ITF1 CDC Data | `0x02` OUT / `0x82` IN (64 B) | CLI 또는 cmd |
 | ITF2 HID | `0x03` OUT / `0x83` IN (64 B, bInterval 1) | cmd 전용. usage page `0xFF00` (vendor) |
 
-| VID:PID | 모드 | 제품명 |
+| VID:PID | 구성 | 쓰는 곳 |
 |---|---|---|
-| `1209:B563` | 부트로더 CDC + HID | `STM32H5-BOOT` |
-| `1209:B564` | 부트로더 CDC + HID + MSC (UF2 를 넣을 때. 아직 없다) | |
-| `1209:B565` | 앱 CDC + HID | `STM32H5-FW` |
-| `1209:B566` | 앱 CDC + HID + MSC (QSPI / 확장보드 SD 를 드라이브로. 아직 없다) | |
+| `1209:B563` | CDC + HID | **부트로더 · 앱 공통** (제품명 `STM32H5-BOOT` / `STM32H5-FW`) |
+| `1209:B564` | CDC + HID + MSC | 부트로더 UF2 (예약) |
+| `1209:B565` | — | 예약 (앱 구성이 달라질 때) |
+| `1209:B566` | CDC + HID + MSC | 앱 MSC — QSPI / 확장보드 SD (예약) |
 
 ```
-HID 1209:B565 APP      STM32H5-FW
-CDC 1209:B565 /dev/cu.usbmodem1412101 STM32H5-FW
+HID 1209:B563  STM32H5-FW
+CDC 1209:B563  /dev/cu.usbmodem1412101  STM32H5-FW
 ```
 
 - VID `0x1209` 는 pid.codes (오픈소스 하드웨어용 공용 VID). 처음에는 TinyUSB 예제 VID `0xCAFE:0x4563` 이었다 (6 절)
-- **부트로더와 앱의 PID 를 나눈다** (weact-h750 과 같다). 연결하기 전에 PID 로 모드를 알고, 붙은 뒤에는 INFO 의 `mode` 로도 안다
-- PID 는 `usb_desc.c` 가 `HW_DEV_MODE` 로 고른다. 두 프로젝트의 USB 파일이 같은 내용으로 유지된다
+- **PID 는 모드(부트로더 / 앱)가 아니라 USB 구성을 따른다.** 부트로더와 앱은 구성이 같아 PID 도 같다. 모드는 INFO 의 `mode` 와 제품명으로 안다
+- 처음에는 weact-h750 처럼 부트로더(B563) / 앱(B565) 을 나눴다가 다시 합쳤다 (6 절 "부트로더와 앱 PID")
 - 시리얼은 칩 UID. 부트로더와 앱이 같아서 **CDC 포트 이름이 리셋 뒤에도 같다** (PID 가 바뀌어도 macOS 에서 같았다)
 - 부트로더는 USB 를 모듈로 열어 **머무를 때만** 열거된다. 앱으로 점프하기 전에 `usbDeInit()` 으로 내린다
 
@@ -189,14 +189,26 @@ TinyUSB CDC + HID 로 약 16 KB 늘었다.
 | PID | 프로젝트 | pid.codes 등록 |
 |---|---|---|
 | `1209:B750` / `B751` / `B752` | weact-h750 (부트로더 / 부트로더 + MSC / 앱) | **미등록** |
-| `1209:B563` / `B564` / `B565` | 이 보드 | **미등록** (비어 있음을 확인) |
+| `1209:B563` ~ `B566` | 이 보드 | **미등록** (비어 있음을 확인) |
 
 레지스트리(`github.com/pidcodes/pidcodes.github.com`)는 `1209/<PID>/index.md` 로 확인했다 (`gh api .../contents/1209/B563` → 404, 이미 등록된 `B010`, `B747` 은 파일이 나온다).
 디렉터리 목록은 API 가 1000 개까지만 돌려줘서 판단에 쓰지 않았다.
 
 → **pid.codes 에 PR 로 등록해 두는 것을 권한다** (weact 의 B750 ~ B752 도 함께). 등록 전에는 남이 먼저 가져갈 수 있다.
 
-웹 필터에는 세 PID 를 다 넣는다 (WebHID / Web Serial 모두 필터 배열을 받는다).
+### 부트로더와 앱 PID — 나눴다가 다시 합쳤다
+
+| | 나눴을 때 (B563 / B565) | 합친 뒤 (B563) |
+|---|---|---|
+| 웹 (WebHID / Web Serial) | 권한이 장치(VID/PID)마다라, 앱이 부트로더로 리셋하면 **처음 한 번 사용자가 다시 골라야** 했다 (브라우저마다, HID / CDC 각각, 새 컴퓨터마다). 선택창을 자동으로 띄워 줄였지만 없앨 수는 없다 | 권한이 그대로다. 선택창이 없다 |
+| Windows | 부트로더 / 앱이 다른 장치 | 같은 장치, COM 포트도 그대로 |
+| 모드 구분 | PID 로 | INFO 의 `mode`, 제품명으로 (툴 / 웹은 원래 INFO 를 본다) |
+
+나눴던 이유는 "인터페이스 구성이 바뀌는데 VID/PID 가 같으면 Windows 가 캐시한 디스크립터로 잘못 붙는다" 였다.
+그런데 부트로더와 앱은 **구성이 같다** (CDC + HID, 같은 엔드포인트). 그래서 규칙을 **"구성이 바뀌면 PID 를 바꾼다"** 로 정하고 합쳤다.
+MSC 를 더한 구성(B564 / B566)이나, 나중에 앱에 다른 USB 기능이 붙으면 그때 PID 를 나눈다.
+
+웹 필터에는 B563 ~ B566 을 다 넣는다 (WebHID / Web Serial 모두 필터 배열을 받는다).
 확장보드는 같은 부트로더라 PID 를 나누기보다 INFO 의 `name` / USB 제품명으로 가른다.
 
 바꿀 곳 : 펌웨어 `usb_desc.c` 의 `USB_VID / USB_PID_*`, 툴 `cmdproto.py` 의 `USB_VID / USB_PID_*`.
@@ -207,7 +219,7 @@ TinyUSB CDC + HID 로 약 16 KB 늘었다.
 |---|---|---|
 | 부트로더 MSC (UF2 드래그 & 드롭) | **요청할 때만** 보인다. 리셋 더블클릭 / 앱의 요청(`MODE_BIT_MSC`) 으로 들어왔을 때 PID `B564` 로 열거. 그 외 부트로더는 `B563` (CDC + HID) | 부트로더에 들어갈 때마다 드라이브가 마운트되면 번거롭고, 꺼낼 때 OS 가 경고한다. weact-h750 과 같은 방식 (w6300 은 항상 보였다) |
 | 앱 MSC | 나중에. 저장소를 갈아끼울 수 있게 (QSPI 32 MB 또는 확장보드의 microSD) | FAT 와 동시 쓰기(호스트와 펌웨어가 같이 쓰면 깨진다) 설계가 따로 필요하다 |
-| MSC 유무로 PID 를 바꾼다 | B563 ↔ B564, B565 ↔ B566 | 인터페이스 구성이 바뀌는데 PID 가 같으면 Windows 가 캐시한 디스크립터로 잘못 붙는다 |
+| MSC 유무로 PID 를 바꾼다 | 부트로더 B563 ↔ B564, 앱 B563 ↔ B566 | 인터페이스 구성이 바뀌는데 PID 가 같으면 Windows 가 캐시한 디스크립터로 잘못 붙는다 |
 | UF2 family ID | `0xFFFF0005` (후보) | 내 저장소에서 쓰는 것: `0001` ~ `0004`, `0010` ~ `0015` (convex). `0005` 는 UF2 와 무관한 상수로만 나온다 |
 
 UF2 를 넣을 때 참고할 곳 : weact-h750 부트로더 `ap/modules/uf2/` (단일 영역, FAT16 16 MB, MSC 유무로 디스크립터·PID 를 런타임에 고른다).
@@ -215,7 +227,7 @@ UF2 를 넣을 때 참고할 곳 : weact-h750 부트로더 `ap/modules/uf2/` (�
 
 ## 8. 남은 것
 
-- [x] VID/PID — `1209:B563` (부트로더) / `B565` (앱)
+- [x] VID/PID — `1209:B563` (부트로더 · 앱 공통, CDC + HID)
 - [ ] pid.codes 에 PR 로 등록 (사용자)
 - [ ] Windows 에서 CDC / HID (드라이버 없이 붙는지)
 - [ ] 웹페이지 — WebHID / Web Serial 업데이트, WebUSB ROM DFU 로 부트로더 업데이트

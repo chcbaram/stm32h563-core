@@ -5,24 +5,20 @@
 
 
 //   VID 0x1209 는 pid.codes (오픈소스 하드웨어용 공용 VID). PID 는 레지스트리에서 비어 있는 것을 골랐다.
-//   weact-h750 (B750 ~ B752) 과 같은 규칙으로 칩 번호를 대역으로 쓴다.
+//   weact-h750 (B750 ~ B752) 과 같이 칩 번호를 대역으로 쓴다.
 //
-//     B563  부트로더  CDC + HID
-//     B564  부트로더  CDC + HID + MSC   (UF2 를 넣을 때. 아직 없다)
-//     B565  앱        CDC + HID
+//   **PID 는 모드(부트로더 / 앱)가 아니라 USB 구성을 따른다.**
 //
-//   부트로더와 앱의 PID 를 나눈다. 인터페이스 구성이 다른데 VID/PID 가 같으면 호스트(특히 Windows)가
-//   캐시한 디스크립터로 잘못 붙는다. 호스트는 PID 로 모드를 알고, 필터에는 셋을 다 넣는다.
+//     B563  CDC + HID          부트로더 · 앱 공통 (지금)
+//     B564  CDC + HID + MSC    부트로더 UF2 (예약)
+//     B565  (예약)              앱 구성이 달라질 때 (예: 다른 USB 기능이 붙을 때)
+//     B566  CDC + HID + MSC    앱 MSC (예약)
+//
+//   부트로더와 앱의 구성이 같으므로 PID 도 같게 둔다. 그래야 웹(WebHID / Web Serial)에서 장치가 바뀌어도
+//   한 번 받은 권한이 그대로 통하고, Windows 에서 COM 포트도 그대로다. 모드는 cmd INFO 의 mode 와 제품명으로 안다.
+//   구성이 바뀌면(MSC 등) PID 를 바꾼다 — 같은 VID/PID 로 구성만 바뀌면 Windows 가 캐시한 디스크립터로 잘못 붙는다.
 #define USB_VID           0x1209
-#define USB_PID_BOOT      0xB563
-#define USB_PID_BOOT_MSC  0xB564
-#define USB_PID_APP       0xB565
-
-#if HW_DEV_MODE == HW_DEV_MODE_BOOT
-#define USB_PID           USB_PID_BOOT
-#else
-#define USB_PID           USB_PID_APP
-#endif
+#define USB_PID           0xB563
 #define USB_BCD           0x0200
 
 

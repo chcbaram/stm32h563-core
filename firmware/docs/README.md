@@ -39,7 +39,7 @@ macOS / Windows 모두 같은 구성이다 → [10](10-dev-environment.md)
 ### 다음 작업
 
 1. 리셋 버튼 더블클릭 확인, VSCode `Debug FW` / 태스크와 Windows 확인
-2. pid.codes 에 PID 등록 (`1209:B563` 부트로더 / `B565` 앱, weact 의 B750~B752 도) → [27](27-usb.md) 6절
+2. pid.codes 에 PID 등록 (`1209:B563` ~ `B566`, weact 의 B750~B752 도) → [27](27-usb.md) 6절
 3. **웹페이지 브라우저 시험** — HID / CDC 펌웨어 업데이트, ROM DFU 부트로더 업데이트 → [28](28-web.md) 6절
 4. 슬롯 핑퐁 / 롤백 (w6300 방식, bank2)
 5. 확장보드 펌웨어를 붙일 때 — 보드 이름 구분, 웹 드롭다운 자동 선택 / 확인 → [28](28-web.md) 5절 (아직 하지 않는다)

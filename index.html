@@ -50,6 +50,7 @@
   .badge.boot{background:#8367c7;border-color:#8367c7}
   .badge.app{background:var(--ok);border-color:var(--ok)}
   ol{margin:4px 0 10px;padding-left:22px;font-size:14px}
+  .ask{margin-top:12px;padding:10px 12px;border:1px solid var(--accent);border-radius:6px;font-size:14px}
   code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}
 </style>
 </head>
@@ -78,10 +79,6 @@
     <p class="muted small" style="margin:8px 0 0">
       HID 는 터미널이 CDC 를 CLI 로 쓰고 있어도 된다. CDC 는 다른 프로그램(터미널)이 그 포트를 열고 있으면 열 수 없다.
     </p>
-    <div class="row" id="bootAskRow" hidden style="margin-top:10px">
-      <span class="small">보드가 부트로더로 바뀌었다. 처음 한 번 목록에서 <b>STM32H5-BOOT</b> 를 골라 줄 것</span>
-      <button id="btnBootAsk" class="primary small">부트로더 고르기</button>
-    </div>
   </div>
 
   <!-- 탭 : 부트로더 / 펌웨어 -->
@@ -128,6 +125,13 @@
       <button id="btnFw" class="primary" disabled>펌웨어 업데이트</button>
       <span id="fwState" class="muted small"></span>
     </div>
+    <!-- 부트로더와 앱은 같은 PID(B563)라 보통은 권한이 그대로다. 부트로더 PID 가 달라지는 경우(MSC 구성 B564 등)
+         권한이 없으면 사용자가 골라야 한다. 지금 보고 있는 이 카드 안에 띄운다 (연결 카드에 두었더니 화면 밖이라 못 봤다) -->
+    <div class="ask" id="bootAskRow" hidden>
+      <div><b>보드가 부트로더로 바뀌었다.</b> 처음 한 번만, 아래 버튼을 누르고 목록에서 <b>STM32H5-BOOT</b> 를 골라 줄 것.
+        <span class="muted">브라우저가 기억해 다음부터는 자동으로 붙는다.</span></div>
+      <button id="btnBootAsk" class="primary" style="margin-top:8px">부트로더 고르기</button>
+    </div>
     <progress id="fwProg" value="0" max="1" hidden></progress>
   </div>
 
@@ -135,9 +139,9 @@
 </div>
 
 <script type="module">
-import { requestChannel, USB_PID_BOOT, USB_PID_BOOT_MSC } from './web/proto.js?v=20261003-2';
-import { BOOT_CMD, parseInfo, downloadFirmware, readImageVer, DEV_MODE_BOOT } from './web/boot.js?v=20261003-2';
-import { DfuDevice } from './web/dfu.js?v=20261003-2';
+import { requestChannel, BOOT_PIDS } from './web/proto.js?v=20261003-5';
+import { BOOT_CMD, parseInfo, downloadFirmware, readImageVer, DEV_MODE_BOOT } from './web/boot.js?v=20261003-5';
+import { DfuDevice } from './web/dfu.js?v=20261003-5';
 
 const $ = (id) => document.getElementById(id);
 const BIN = './web/bin/';
@@ -201,12 +205,37 @@ async function connect(kind) {
 function askBoot(kind) {
   return new Promise((resolve) => {
     $('bootAskRow').hidden = false;
+    $('bootAskRow').scrollIntoView({ behavior: 'smooth', block: 'center' });
     $('btnBootAsk').onclick = async () => {
       $('bootAskRow').hidden = true;
-      try { resolve(await requestChannel(kind, [USB_PID_BOOT, USB_PID_BOOT_MSC])); }
+      try { resolve(await requestChannel(kind, BOOT_PIDS)); }
       catch (e) { resolve(null); }
     };
   });
+}
+
+/*
+ * 부트로더 선택창을 자동으로 연다.
+ *
+ *   브라우저는 사용자 클릭 직후 몇 초 동안만 선택창을 허용한다 (사용자 활성화). "펌웨어 업데이트" 를 누른 뒤
+ *   FW_UPDATE 까지 1 초가 안 걸리므로 그 안에 연다. 선택창은 장치가 나타나면 목록을 갱신해서
+ *   부트로더가 다시 열거되는 순간 STM32H5-BOOT 가 뜬다. 사용자는 고르기만 하면 된다.
+ *
+ *   이 브라우저에서 한 번 부트로더에 붙은 적이 있으면 (bootGranted-<HID|CDC>) 열지 않는다.
+ *   권한이 남아 있으니 waitChannel() 이 선택창 없이 붙는다.
+ */
+async function autoAskBoot(kind) {
+  let granted = false;
+  try { granted = localStorage.getItem('bootGranted-' + kind) === '1'; } catch (e) { /* */ }
+  if (granted) return null;
+  if (navigator.userActivation && !navigator.userActivation.isActive) return null;   // 시간이 지났다 → 버튼으로
+
+  log('부트로더 장치를 고르는 창을 연다. 목록에 STM32H5-BOOT 가 나타나면 골라 줄 것 (처음 한 번)');
+  try {
+    return await requestChannel(kind, BOOT_PIDS);
+  } catch (e) {
+    return null;          // 닫았거나 브라우저가 거부했다 → 다음 단계 (기다리기 / 버튼)
+  }
 }
 
 async function sha256Hex(buf) {
@@ -250,6 +279,8 @@ async function updateFirmware() {
       log: (m) => log(m),
       progress: (p) => { $('fwProg').value = p; },
       askBoot: () => askBoot(kind),
+      autoAskBoot: () => autoAskBoot(kind),
+      bootGranted: () => { try { localStorage.setItem('bootGranted-' + kind, '1'); } catch (e) { /* */ } },
     });
     ch = null;
     showDevice(null);

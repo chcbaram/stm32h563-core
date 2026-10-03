@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-03 23:05",
+  "generated": "2026-10-03 23:34",
   "boot": {
     "file": "boot/stm32h5-boot.bin",
     "name": "STM32H5-BOOT",
@@ -19,8 +19,8 @@
       "version": "V261003R1",
       "addr": "0x08040400",
       "size": 84840,
-      "crc16": "0xB9B9",
-      "sha256": "3e66f756fb5138520a9a3cec6cf34385e110dd55305e817e444108341b971614",
+      "crc16": "0xE9F4",
+      "sha256": "0c92b3ddfc7388955f8e5479d5f844ad403d660c45fa7ca738d8c944d17aa225",
       "method": "cmd"
     }
   ]

@@ -3,7 +3,7 @@
 //   펌웨어 src/ap/modules/cmd/process/cmd_boot.c 와 맞는다. 흐름은 tools/download.py 와 같다.
 //     INFO → (앱이면 FW_UPDATE 로 부트로더에 넘기고 다시 붙는다) → BEGIN → ERASE → WRITE … → END → VERIFY → JUMP
 
-import { str32, USB_PID_BOOT, USB_PID_BOOT_MSC, waitChannel } from './proto.js?v=20261003-2';
+import { str32, BOOT_PIDS, waitChannel } from './proto.js?v=20261003-5';
 
 export const BOOT_CMD = {
   INFO:      0x0000,
@@ -117,15 +117,24 @@ export async function downloadFirmware(ch, image, ui) {
   if (info.mode !== DEV_MODE_BOOT) {
     // 앱이 돌고 있다. 부트로더에 머물러 달라고 하고(FW_UPDATE → resetToBoot) 다시 붙는다
     ui.log('앱이 실행 중 → 부트로더로 넘어가 다시 붙는다');
+    const appPid = ch.pid;
     try { await ch.request(BOOT_CMD.FW_UPDATE, null, 1000); } catch (e) { /* 리셋하면서 끊긴다 */ }
     await ch.close();
 
-    ch = await waitChannel(kind, [USB_PID_BOOT, USB_PID_BOOT_MSC]);
+    // 1) 부트로더 PID 가 달라 권한이 없을 것 같으면 선택창을 곧바로 연다 (클릭 직후라 브라우저가 허용한다).
+    //    선택창은 장치가 나타나면 목록을 갱신하므로, 부트로더가 다시 열거되는 순간 목록에 뜬다.
+    // 2) 권한이 있으면 그 장치가 나타날 때까지 기다린다.
+    // 3) 둘 다 안 되면 사용자가 버튼으로 고르게 한다.
+    //    앱의 PID 가 부트로더 PID 이기도 하면 (지금처럼 같은 B563) 권한이 그대로라 선택창이 필요 없다.
+    const samePid = BOOT_PIDS.includes(appPid);
+    ch = (!samePid && ui.autoAskBoot) ? await ui.autoAskBoot() : null;
+    if (!ch) ch = await waitChannel(kind, BOOT_PIDS);
     if (!ch) {
-      ui.log('부트로더 장치 권한이 없다. 목록에서 부트로더(STM32H5-BOOT)를 골라 줄 것');
+      ui.log('부트로더 장치 권한이 없다 (처음 한 번). 펌웨어 카드의 [부트로더 고르기] 를 눌러 STM32H5-BOOT 를 골라 줄 것');
       ch = await ui.askBoot();
       if (!ch) throw new Error('부트로더에 다시 붙지 못했다');
     }
+    if (ui.bootGranted) ui.bootGranted();
     info = parseInfo((await requestOk(ch, BOOT_CMD.INFO, null, 3000, 'INFO')).data);
     ui.log(`연결 : ${info.name} ${info.version} [${info.modeStr}]`);
     if (info.mode !== DEV_MODE_BOOT) throw new Error('부트로더로 넘어가지 않았다');

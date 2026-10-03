@@ -10,13 +10,13 @@
 //
 //   이 파일은 전송 / 프로토콜만 맡는다. 화면은 index.html 이 맡는다.
 
-export const USB_VID          = 0x1209;     // pid.codes
-export const USB_PID_BOOT     = 0xB563;
-export const USB_PID_BOOT_MSC = 0xB564;
-export const USB_PID_APP      = 0xB565;
-export const USB_PIDS         = [USB_PID_BOOT, USB_PID_BOOT_MSC, USB_PID_APP];
-
-export const isBootPid = (pid) => pid === USB_PID_BOOT || pid === USB_PID_BOOT_MSC;
+// pid.codes VID. PID 는 USB 구성을 따른다 (펌웨어 usb_desc.c).
+//   B563 = CDC + HID, 부트로더 · 앱 공통 — 장치가 바뀌어도 브라우저 권한이 그대로다. 모드는 INFO 의 mode 로 안다
+//   B564 = 부트로더 + MSC (예약), B565 = 예약, B566 = 앱 + MSC (예약)
+export const USB_VID   = 0x1209;
+export const USB_PID   = 0xB563;
+export const USB_PIDS  = [0xB563, 0xB564, 0xB565, 0xB566];
+export const BOOT_PIDS = [0xB563, 0xB564];        // 부트로더가 쓸 수 있는 PID
 
 export const PKT_TYPE_CMD  = 0x00;
 export const PKT_TYPE_RESP = 0x01;
@@ -204,9 +204,9 @@ export class SerialChannel extends Channel {
 
 //-- 장치 고르기 / 다시 찾기
 //
-//   부트로더(B563)와 앱(B565)은 PID 가 다르다. 브라우저 권한은 장치(VID/PID)마다라서
-//   앱에 붙어 업데이트를 시작하면, 부트로더로 바뀐 장치는 **처음 한 번 사용자가 다시 골라야** 한다.
-//   한 번 고르면 브라우저가 기억해 다음부터는 getDevices() / getPorts() 로 바로 찾는다.
+//   부트로더와 앱이 같은 PID(B563)라, 앱이 부트로더로 리셋해 다시 열거돼도 권한이 그대로다.
+//   getDevices() / getPorts() 로 바로 다시 찾는다. (부트로더만 MSC 구성(B564) 으로 열거되는 경우처럼
+//   PID 가 바뀌면 권한이 없을 수 있다 — 그때는 선택창을 연다. boot.js / index.html)
 
 const hidFilters    = (pids) => pids.map(p => ({ vendorId: USB_VID, productId: p }));
 const serialFilters = (pids) => pids.map(p => ({ usbVendorId: USB_VID, usbProductId: p }));

@@ -61,7 +61,7 @@ python3 tools/download.py --via cdc    # 또는 USB CDC / --via hid : USB HID
 - VSCode 에는 빌드 / 쓰기 / 다운로드 태스크와 디버그 구성(`Debug FW` : 빌드 → 쓰기 → 앱 `main` 에서 멈춤)이 들어 있습니다
 - 부트로더에 머무르려면 앱에서 `reset boot`, 또는 리셋 버튼을 빠르게 두 번 누릅니다
 
-USB 는 pid.codes VID `0x1209` 를 씁니다. 부트로더 `1209:B563`, 앱 `1209:B565` ([27](firmware/docs/27-usb.md)).
+USB 는 pid.codes VID `0x1209` 를 씁니다. 부트로더 · 앱 모두 `1209:B563` (CDC + HID), MSC 구성은 B564 / B566 예약 ([27](firmware/docs/27-usb.md)).
 
 ## 사용한 툴
 
