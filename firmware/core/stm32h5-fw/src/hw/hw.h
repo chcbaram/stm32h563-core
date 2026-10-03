@@ -12,6 +12,8 @@ extern "C" {
 #include "uart.h"
 #include "cli.h"
 #include "log.h"
+#include "rtc.h"
+#include "reset.h"
 #include "qbuffer.h"
 #include "util_core.h"
 

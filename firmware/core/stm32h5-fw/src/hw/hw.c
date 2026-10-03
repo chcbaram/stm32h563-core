@@ -35,6 +35,9 @@ bool hwInit(void)
   logPrintf("Booting..Addr \t\t: 0x%X\r\n", (uint32_t)&_fw_flash_begin); 
   logPrintf("\n");
 
+  rtcInit();
+  resetInit();
+
   logBoot(false);
   
   return true;

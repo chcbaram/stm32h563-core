@@ -131,7 +131,7 @@ static int logBufHeader(log_buf_t *p_log, char *p_buf, uint32_t size)
 #ifdef _USE_HW_RTC
   rtc_time_t time;
 
-  if (rtcGetTime(&time) == true)
+  if (rtcIsTimeSet() == true && rtcGetTime(&time) == true)
   {
     return snprintf(p_buf, size, "[%02d:%02d:%02d]\t",
                     time.hours, time.minutes, time.seconds);
