@@ -222,13 +222,16 @@ export class DfuDevice {
     }
   }
 
-  // DFU 를 떠나 addr 에서 실행한다 (dfu-util 의 :leave). 장치가 사라지므로 마지막 응답은 못 받을 수 있다.
-  async leave(addr) {
-    await this.toIdle();
-    await this.setAddress(addr);
-    try {
-      await this._out(DFU_DNLOAD, 2, new Uint8Array(0));
-      await this.getStatus();
-    } catch (e) { /* 리셋하면서 끊긴다 */ }
+  /*
+   * 쓰기를 마무리한다. **leave(go) 는 하지 않는다.**
+   *
+   * DfuSe 의 leave (주소 지정 → 길이 0 DNLOAD → GET_STATUS, dfu-util 의 :leave / CubeProgrammer 의 -g) 를 보내면
+   * STM32H563 ROM 은 0x08000000 으로 점프하다 **코어 락업**에 빠진다 (2026-10-03 실측, CubeProgrammer -g 0x08000000).
+   *   PC 0xEFFFFFFE (lockup), MSP 0x3004xxxx · VTOR 0x0FF80300 (ROM 것 그대로), CFSR 0x1001 (IACCVIOL + STKERR), HFSR FORCED
+   * 우리 코드는 한 줄도 돌지 않았다. ROM 이 켜 둔 MPU 가 남은 채 플래시를 실행하려다 막힌 것으로 본다.
+   * 어차피 리셋이 필요하므로, 락업보다 상태가 분명한 "DFU 장치로 남아 있기" 로 끝내고 사용자에게 리셋을 부탁한다.
+   */
+  async finish() {
+    try { await this.toIdle(); } catch (e) { /* */ }
   }
 }

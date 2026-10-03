@@ -111,7 +111,7 @@
     <progress id="bootProg" value="0" max="1" hidden></progress>
     <p class="muted small" style="margin:8px 0 0">
       Windows 에서는 ROM DFU 장치에 WinUSB 드라이버가 붙어 있어야 WebUSB 로 열 수 있다 (ST 드라이버가 깔려 있으면 Zadig 등으로 바꾼다).
-      쓰고 나면 보드가 새 부트로더로 실행된다. 앱은 그대로 남는다.
+      다 쓰면 <b>BOOT0 을 뗀 상태에서 리셋(S2)</b> 을 눌러 새 부트로더로 실행한다 (ROM DFU 에서 바로 실행시키면 이 칩은 락업에 빠진다). 앱은 그대로 남는다.
     </p>
   </div>
 
@@ -284,9 +284,10 @@ async function updateBootloader() {
       log: (m) => log(m),
       progress: (p, what) => { $('bootProg').value = p; $('bootState').textContent = `${what}…`; },
     }, $('bootVerify').checked);
-    await dfu.leave(0x08000000);
-    log(`완료 : ${((performance.now() - t0) / 1000).toFixed(2)} s. 보드가 새 부트로더로 실행된다`, 'ok');
-    $('bootState').textContent = '완료';
+    await dfu.finish();
+    log(`쓰기 완료 : ${((performance.now() - t0) / 1000).toFixed(2)} s`, 'ok');
+    log('BOOT0(S3) 을 뗀 상태에서 리셋 버튼(S2) 을 누르면 새 부트로더로 실행된다', 'ok');
+    $('bootState').textContent = '완료 — BOOT0 을 떼고 리셋(S2) 을 눌러 줄 것';
   } catch (e) {
     if (e.name === 'NotFoundError') log('DFU 장치를 고르지 않았다. BOOT0(S3) 을 누른 채 리셋했는지 볼 것');
     else log(`부트로더 업데이트 실패 : ${e.message}`, 'err');
