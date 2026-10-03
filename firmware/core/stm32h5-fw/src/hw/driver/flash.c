@@ -74,6 +74,33 @@ bool flashIsInit(void)
   return is_init;
 }
 
+bool flashErase(uint32_t addr, uint32_t length)
+{
+#ifdef _USE_HW_QSPI
+  if (flashIsQspi(addr, length))
+    return qspiErase(addr - qspiGetAddr(), length);
+#endif
+  return flashIntErase(addr, length);
+}
+
+bool flashWrite(uint32_t addr, uint8_t *p_data, uint32_t length)
+{
+#ifdef _USE_HW_QSPI
+  if (flashIsQspi(addr, length))
+    return qspiWrite(addr - qspiGetAddr(), p_data, length);
+#endif
+  return flashIntWrite(addr, p_data, length);
+}
+
+bool flashRead(uint32_t addr, uint8_t *p_data, uint32_t length)
+{
+#ifdef _USE_HW_QSPI
+  if (flashIsQspi(addr, length))
+    return qspiRead(addr - qspiGetAddr(), p_data, length);
+#endif
+  return flashIntRead(addr, p_data, length);
+}
+
 //-- 주소 -> (뱅크, 뱅크상대 섹터번호)
 //   ST 공식 예제(FLASH_EraseProgram)의 GetBank()/GetSector() 와 동일한 규칙.
 //   SWAP_BANK 가 켜져 있으면 논리 뱅크가 뒤집힌다.
@@ -313,33 +340,6 @@ bool flashIntRead(uint32_t addr, uint8_t *p_data, uint32_t length)
 
   memcpy(p_data, (const void *)addr, length);
   return true;
-}
-
-bool flashErase(uint32_t addr, uint32_t length)
-{
-#ifdef _USE_HW_QSPI
-  if (flashIsQspi(addr, length))
-    return qspiErase(addr - qspiGetAddr(), length);
-#endif
-  return flashIntErase(addr, length);
-}
-
-bool flashWrite(uint32_t addr, uint8_t *p_data, uint32_t length)
-{
-#ifdef _USE_HW_QSPI
-  if (flashIsQspi(addr, length))
-    return qspiWrite(addr - qspiGetAddr(), p_data, length);
-#endif
-  return flashIntWrite(addr, p_data, length);
-}
-
-bool flashRead(uint32_t addr, uint8_t *p_data, uint32_t length)
-{
-#ifdef _USE_HW_QSPI
-  if (flashIsQspi(addr, length))
-    return qspiRead(addr - qspiGetAddr(), p_data, length);
-#endif
-  return flashIntRead(addr, p_data, length);
 }
 
 #ifdef _USE_HW_QSPI

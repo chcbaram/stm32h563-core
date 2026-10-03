@@ -49,6 +49,9 @@ static SemaphoreHandle_t mutex_lock;
 
 
 
+static int  logBufHeader(log_buf_t *p_log, char *p_buf, uint32_t size);
+static bool logBufPrintf(log_buf_t *p_log, char *p_data, uint32_t length);
+
 #if CLI_USE(HW_LOG)
 static void cliCmd(cli_args_t *args);
 #endif
@@ -117,68 +120,6 @@ bool logIsOpen(void)
   return is_open;
 }
 
-// 링 버퍼 : buf_index = 다음에 쓸 위치, buf_length = 남아 있는 바이트 수 (최대 buf_length_max).
-// 가득 차면 가장 오래된 것부터 덮어쓴다. 출력은 logBufDump() 가 오래된 것 → 최신 순으로 한다.
-//
-// 줄 머리. 로그를 버퍼에 넣는 순간에 만든다.
-// rtc 시각이 맞춰져 있으면 그 시각을, 아니면 부팅 후 경과 시간을 넣는다.
-//
-//   [12:34:56]   시각 설정됨
-//   [   12.345]  부팅 후 초.밀리초
-//
-static int logBufHeader(log_buf_t *p_log, char *p_buf, uint32_t size)
-{
-#ifdef _USE_HW_RTC
-  rtc_time_t time;
-
-  if (rtcIsTimeSet() == true && rtcGetTime(&time) == true)
-  {
-    return snprintf(p_buf, size, "[%02d:%02d:%02d]\t",
-                    time.hours, time.minutes, time.seconds);
-  }
-#endif
-
-  {
-    uint32_t ms = millis();
-
-    return snprintf(p_buf, size, "[%5u.%03u]\t",
-                    (unsigned)(ms / 1000), (unsigned)(ms % 1000));
-  }
-}
-
-bool logBufPrintf(log_buf_t *p_log, char *p_data, uint32_t length)
-{
-  char     line[sizeof(print_buf) + 32];
-  int      line_len;
-
-
-  line_len = logBufHeader(p_log, line, sizeof(line));
-  if (line_len < 0) line_len = 0;
-  line_len += snprintf(&line[line_len], sizeof(line) - line_len, "%.*s", (int)length, p_data);
-  if (line_len <= 0)
-  {
-    return false;
-  }
-  if (line_len >= (int)sizeof(line))
-  {
-    line_len = sizeof(line) - 1;
-  }
-  p_log->line_index++;
-
-  for (int i=0; i<line_len; i++)
-  {
-    p_log->buf[p_log->buf_index] = line[i];
-    p_log->buf_index = (p_log->buf_index + 1) % p_log->buf_length_max;
-  }
-
-  if (p_log->buf_length + line_len < p_log->buf_length_max)
-    p_log->buf_length += line_len;
-  else
-    p_log->buf_length = p_log->buf_length_max;
-
-  return true;
-}
-
 void logPrintf(const char *fmt, ...)
 {
 
@@ -227,6 +168,68 @@ int _write(int file, char *ptr, int len)
 
 
 #if CLI_USE(HW_LOG)
+// 링 버퍼 : buf_index = 다음에 쓸 위치, buf_length = 남아 있는 바이트 수 (최대 buf_length_max).
+// 가득 차면 가장 오래된 것부터 덮어쓴다. 출력은 logBufDump() 가 오래된 것 → 최신 순으로 한다.
+//
+// 줄 머리. 로그를 버퍼에 넣는 순간에 만든다.
+// rtc 시각이 맞춰져 있으면 그 시각을, 아니면 부팅 후 경과 시간을 넣는다.
+//
+//   [12:34:56]   시각 설정됨
+//   [   12.345]  부팅 후 초.밀리초
+//
+static int logBufHeader(log_buf_t *p_log, char *p_buf, uint32_t size)
+{
+#ifdef _USE_HW_RTC
+  rtc_time_t time;
+
+  if (rtcIsTimeSet() == true && rtcGetTime(&time) == true)
+  {
+    return snprintf(p_buf, size, "[%02d:%02d:%02d]\t",
+                    time.hours, time.minutes, time.seconds);
+  }
+#endif
+
+  {
+    uint32_t ms = millis();
+
+    return snprintf(p_buf, size, "[%5u.%03u]\t",
+                    (unsigned)(ms / 1000), (unsigned)(ms % 1000));
+  }
+}
+
+static bool logBufPrintf(log_buf_t *p_log, char *p_data, uint32_t length)
+{
+  char     line[sizeof(print_buf) + 32];
+  int      line_len;
+
+
+  line_len = logBufHeader(p_log, line, sizeof(line));
+  if (line_len < 0) line_len = 0;
+  line_len += snprintf(&line[line_len], sizeof(line) - line_len, "%.*s", (int)length, p_data);
+  if (line_len <= 0)
+  {
+    return false;
+  }
+  if (line_len >= (int)sizeof(line))
+  {
+    line_len = sizeof(line) - 1;
+  }
+  p_log->line_index++;
+
+  for (int i=0; i<line_len; i++)
+  {
+    p_log->buf[p_log->buf_index] = line[i];
+    p_log->buf_index = (p_log->buf_index + 1) % p_log->buf_length_max;
+  }
+
+  if (p_log->buf_length + line_len < p_log->buf_length_max)
+    p_log->buf_length += line_len;
+  else
+    p_log->buf_length = p_log->buf_length_max;
+
+  return true;
+}
+
 // 오래된 것 → 최신 순으로 출력한다. 한 바퀴 돌아 덮어쓴 경우 앞부분의 잘린 줄은 건너뛴다.
 // 출력하는 동안 lock 을 잡아 둔다 (그 사이 다른 스레드의 logPrintf 는 기다린다).
 //

@@ -163,32 +163,6 @@ bool resetInit(void)
   return ret;
 }
 
-#if defined(HW_RESET_BOOT) && HW_RESET_BOOT > 0
-//-- 카운트 저장/로드를 분리해 둔다.
-//   RTC/LSE 에 문제가 생기면 .noinit SRAM 방식으로 즉시 바꿔 끼울 수 있다.
-//   더블클릭 판정은 부트로더만 하므로 앱 빌드에서는 통째로 빠진다.
-//
-uint32_t resetCntLoad(void)
-{
-  uint32_t reg = 0;
-
-  rtcGetReg(HW_RTC_RESET_CNT, &reg);
-
-  // VBAT 이 없는 보드는 전원이 끊기면 백업 도메인이 날아가 부정값이 된다.
-  // 매직으로 유효성을 판정한다.
-  //
-  if ((reg & 0xFFFF0000UL) != RESET_CNT_MAGIC)
-    return 0;
-
-  return reg & RESET_CNT_MASK;
-}
-
-void resetCntSave(uint32_t cnt)
-{
-  rtcSetReg(HW_RTC_RESET_CNT, RESET_CNT_MAGIC | (cnt & RESET_CNT_MASK));
-}
-#endif
-
 void resetLog(void)
 {
 }
@@ -313,6 +287,33 @@ void resetClearEccAddr(void)
 {
   rtcSetReg(HW_RTC_ECC_ADDR, 0);
 }
+
+
+#if defined(HW_RESET_BOOT) && HW_RESET_BOOT > 0
+//-- 카운트 저장/로드를 분리해 둔다.
+//   RTC/LSE 에 문제가 생기면 .noinit SRAM 방식으로 즉시 바꿔 끼울 수 있다.
+//   더블클릭 판정은 부트로더만 하므로 앱 빌드에서는 통째로 빠진다.
+//
+uint32_t resetCntLoad(void)
+{
+  uint32_t reg = 0;
+
+  rtcGetReg(HW_RTC_RESET_CNT, &reg);
+
+  // VBAT 이 없는 보드는 전원이 끊기면 백업 도메인이 날아가 부정값이 된다.
+  // 매직으로 유효성을 판정한다.
+  //
+  if ((reg & 0xFFFF0000UL) != RESET_CNT_MAGIC)
+    return 0;
+
+  return reg & RESET_CNT_MASK;
+}
+
+void resetCntSave(uint32_t cnt)
+{
+  rtcSetReg(HW_RTC_RESET_CNT, RESET_CNT_MAGIC | (cnt & RESET_CNT_MASK));
+}
+#endif
 
 
 #if CLI_USE(HW_RESET)
