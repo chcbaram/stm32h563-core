@@ -57,7 +57,8 @@
 <div class="wrap">
   <h1>STM32H563 Core</h1>
   <p class="sub">브라우저에서 보드에 직접 연결해 펌웨어와 부트로더를 업데이트한다.
-    <a href="https://github.com/chcbaram/stm32h563-core">GitHub</a></p>
+    <a href="https://github.com/chcbaram/stm32h563-core">GitHub</a><br>
+    <span id="pageInfo" class="small"></span></p>
 
   <p class="warn" id="warnText">
     Chrome 또는 Edge 가 필요하다 (WebHID · Web Serial · WebUSB).
@@ -134,9 +135,9 @@
 </div>
 
 <script type="module">
-import { requestChannel, USB_PID_BOOT, USB_PID_BOOT_MSC } from './web/proto.js';
-import { BOOT_CMD, parseInfo, downloadFirmware, readImageVer, DEV_MODE_BOOT } from './web/boot.js';
-import { DfuDevice } from './web/dfu.js';
+import { requestChannel, USB_PID_BOOT, USB_PID_BOOT_MSC } from './web/proto.js?v=20261003-2';
+import { BOOT_CMD, parseInfo, downloadFirmware, readImageVer, DEV_MODE_BOOT } from './web/boot.js?v=20261003-2';
+import { DfuDevice } from './web/dfu.js?v=20261003-2';
 
 const $ = (id) => document.getElementById(id);
 const BIN = './web/bin/';
@@ -297,6 +298,17 @@ async function updateBootloader() {
   setBusy(false);
 }
 
+// 웹페이지 수정 시각 : GitHub Pages 가 Last-Modified 헤더에 배포 시각을 넣는다 (document.lastModified)
+const fmtTime = (d) => {
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+};
+function showPageInfo() {
+  const parts = [`웹페이지 수정 ${fmtTime(new Date(document.lastModified))}`];
+  if (manifest && manifest.generated) parts.push(`저장소 이미지 ${manifest.generated}`);
+  $('pageInfo').textContent = parts.join(' · ');
+}
+
 async function loadManifest() {
   try {
     const res = await fetch(BIN + 'manifest.json', { cache: 'no-cache' });
@@ -313,6 +325,7 @@ async function loadManifest() {
     if (!sel.options.length) sel.innerHTML = '<option value="">(없음)</option>';
     const b = manifest.boot;
     $('bootRepoVer').textContent = b ? `${b.name} ${b.version}` : '-';
+    showPageInfo();
   } catch (e) {
     log('저장소 이미지 정보(web/bin/manifest.json)를 읽지 못했다', 'err');
   }
@@ -342,6 +355,7 @@ if (missing.length) {
 }
 if (navigator.hid)    navigator.hid.addEventListener('disconnect', (e) => { if (ch && ch.dev === e.device && !busy) { ch = null; showDevice(null); refreshButtons(); log('장치가 빠졌다'); } });
 refreshButtons();
+showPageInfo();
 loadManifest();
 </script>
 </body>

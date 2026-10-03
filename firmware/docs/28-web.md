@@ -17,6 +17,9 @@
 
 Chrome / Edge 가 필요하다. 셋 다 HTTPS 에서만 되고 github.io 가 그 조건을 채운다.
 
+제목 아래에 **웹페이지 수정 시각**(GitHub Pages 의 `Last-Modified` = 배포 시각, `document.lastModified`)과 **저장소 이미지를 만든 시각**(manifest 의 `generated`)을 보여 준다.
+캐시된 옛 페이지를 보고 있는지 바로 알 수 있다.
+
 화면은 위에 **보드 연결** 카드, 그 아래 **탭**(부트로더 업데이트 / 펌웨어 업데이트), 맨 아래 로그다.
 마지막에 고른 탭을 브라우저(`localStorage`)에 기억한다. 처음이거나 저장소를 못 쓰는 환경이면 부트로더 탭으로 연다.
 
@@ -41,7 +44,8 @@ CDC 는 다른 프로그램(터미널)이 그 포트를 열고 있으면 열 수
 4. **BOOT0 을 뗀 상태에서 리셋(S2)** → 새 부트로더로 실행 (ROM DFU 에서 바로 실행시키지 않는다, 아래)
 
 전송 크기는 DFU 기능 디스크립터의 `wTransferSize`, 지울 섹터는 인터페이스 이름의 메모리 배치(`@Internal Flash /0x08000000/…`)에서 읽는다.
-읽지 못하면 8 KB 섹터로 가정한다. 앱 영역은 건드리지 않으므로 리셋하면 새 부트로더가 기존 앱으로 점프한다.
+WebUSB 의 `interfaceName` 이 비어 올 수 있어서 (macOS Chrome 실측 : 로그에 "(이름 없음)") 구성 디스크립터의 `iInterface` 로 문자열 디스크립터를 직접 읽는다.
+그래도 못 읽으면 8 KB 섹터로 가정한다. 앱 영역은 건드리지 않으므로 리셋하면 새 부트로더가 기존 앱으로 점프한다.
 
 실측한 ROM DFU 정보 (STM32H563, `STM32_Programmer_CLI -l usb` / ioreg):
 
@@ -92,6 +96,17 @@ web/
     ├── boot/stm32h5-boot.bin
     └── core/stm32h5-fw.bin       (확장보드 펌웨어가 생기면 <보드>/stm32h5-fw.bin)
 ```
+
+### 모듈 캐시 — import 주소에 버전을 붙인다
+
+GitHub Pages 는 파일을 10 분 캐시하게 한다 (`max-age=600`). 페이지와 모듈이 따로 캐시돼, 새 `index.html` 이 옛 `dfu.js` 를 쓰는 일이 실제로 났다.
+
+```
+부트로더 업데이트 실패 : dfu.finish is not a function
+```
+
+그래서 import 주소에 버전을 붙인다 (`./web/dfu.js?v=20261003-2`). **`web/*.js` 를 고치면 `index.html` 과 `web/boot.js` 의 `?v=` 를 함께 올린다.**
+`index.html` 의 `./web/proto.js?v=…` 와 `boot.js` 의 `./proto.js?v=…` 는 같은 주소로 풀리므로 모듈이 두 번 실리지 않는다.
 
 `proto.js` / `boot.js` 는 w6300 의 `web/` 을 바탕으로 했다. 바꾼 것:
 
@@ -193,6 +208,7 @@ Jekyll 은 `_` 로 시작하는 폴더도 빼 버린다.
 - [ ] HID 로 연결 → 펌웨어 업데이트 (앱 상태에서 시작, 부트로더 고르기 한 번)
 - [ ] CDC 로 연결 → 펌웨어 업데이트
 - [x] ROM DFU → 부트로더 쓰기 (사용자가 브라우저에서. 쓴 부트로더가 리셋 뒤 앱까지 실행)
+  지우기 11 섹터 0.32 s, 쓰기 88,360 B 2.68 s (32.2 KB/s), 확인 0.18 s, 전송 1024 B
 - [x] ROM DFU 인터페이스 이름 — 예상한 형식 그대로 (`@Internal Flash   /0x08000000/256*08Kg`)
 - [ ] leave 를 뺀 뒤 브라우저에서 다시 : 쓰기 → "리셋을 눌러 달라" 안내 → 리셋 → 새 부트로더
 - [ ] Windows 에서 (WebUSB 는 ROM DFU 장치에 WinUSB 드라이버가 필요할 수 있다)

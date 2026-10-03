@@ -85,25 +85,52 @@ export class DfuDevice {
 
     this.intf = pick.intf;
     this.alt = pick.alt;
-    this.altName = pick.name;
-    this.layout = parseMemoryLayout(pick.name);
 
     await dev.claimInterface(this.intf);
     await dev.selectAlternateInterface(this.intf, this.alt);
-    this.transferSize = await this._readTransferSize();
+
+    // 구성 디스크립터에서 전송 크기와 (WebUSB 가 이름을 안 줄 때) 인터페이스 이름을 읽는다
+    const desc = await this._readConfigDesc();
+    this.transferSize = desc.transferSize;
+    this.altName = pick.name || desc.altName || '';
+    this.layout = parseMemoryLayout(this.altName);
   }
 
-  // 구성 디스크립터에서 DFU 기능 디스크립터(type 0x21)의 wTransferSize 를 읽는다
-  async _readTransferSize() {
+  /*
+   * 구성 디스크립터를 직접 읽는다.
+   *   DFU 기능 디스크립터(type 0x21) 의 wTransferSize
+   *   이 인터페이스 / 대체 설정의 인터페이스 디스크립터(type 0x04) 의 iInterface → 문자열 디스크립터 = 메모리 배치
+   *
+   * WebUSB 의 alternate.interfaceName 은 비어 올 수 있다 (macOS Chrome 실측 : "(이름 없음)").
+   * 그러면 메모리 배치를 못 읽어 8 KB 섹터로 가정하게 되므로, 문자열을 직접 가져온다.
+   */
+  async _readConfigDesc() {
+    const out = { transferSize: 1024, altName: '' };
+    let iInterface = 0;
     try {
       const r = await this.dev.controlTransferIn(
-        { requestType: 'standard', recipient: 'device', request: 6, value: 0x0200, index: 0 }, 512);
+        { requestType: 'standard', recipient: 'device', request: 6, value: 0x0200, index: 0 }, 1024);
       const d = new Uint8Array(r.data.buffer);
+      let cur = null;
       for (let i = 0; i + 1 < d.length && d[i] > 0; i += d[i]) {
-        if (d[i + 1] === 0x21 && d[i] >= 7) return d[i + 5] | (d[i + 6] << 8);
+        const type = d[i + 1];
+        if (type === 0x04 && d[i] >= 9) cur = { num: d[i + 2], alt: d[i + 3], str: d[i + 8] };
+        if (type === 0x04 && cur && cur.num === this.intf && cur.alt === this.alt) iInterface = cur.str;
+        if (type === 0x21 && d[i] >= 7) out.transferSize = d[i + 5] | (d[i + 6] << 8);
       }
     } catch (e) { /* 기본값 */ }
-    return 1024;
+
+    if (iInterface) {
+      try {
+        const r = await this.dev.controlTransferIn(
+          { requestType: 'standard', recipient: 'device', request: 6, value: 0x0300 | iInterface, index: 0x0409 }, 255);
+        const d = new Uint8Array(r.data.buffer);
+        let str = '';
+        for (let i = 2; i + 1 < d[0] && i + 1 < d.length; i += 2) str += String.fromCharCode(d[i] | (d[i + 1] << 8));
+        out.altName = str;
+      } catch (e) { /* 이름 없이 간다 (8 KB 섹터 가정) */ }
+    }
+    return out;
   }
 
   async close() {

@@ -3,7 +3,7 @@
 //   펌웨어 src/ap/modules/cmd/process/cmd_boot.c 와 맞는다. 흐름은 tools/download.py 와 같다.
 //     INFO → (앱이면 FW_UPDATE 로 부트로더에 넘기고 다시 붙는다) → BEGIN → ERASE → WRITE … → END → VERIFY → JUMP
 
-import { str32, USB_PID_BOOT, USB_PID_BOOT_MSC, waitChannel } from './proto.js';
+import { str32, USB_PID_BOOT, USB_PID_BOOT_MSC, waitChannel } from './proto.js?v=20261003-2';
 
 export const BOOT_CMD = {
   INFO:      0x0000,
