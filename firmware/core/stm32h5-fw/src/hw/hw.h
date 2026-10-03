@@ -9,6 +9,11 @@ extern "C" {
 
 
 #include "led.h"
+#include "uart.h"
+#include "cli.h"
+#include "log.h"
+#include "qbuffer.h"
+#include "util_core.h"
 
 
 bool hwInit(void);

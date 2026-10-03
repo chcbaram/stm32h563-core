@@ -7,11 +7,11 @@ STM32H563RIT6 (LQFP64) / STM32H563_CORE Rev 1 보드 기준 펌웨어 개발 기
 | | |
 |---|---|
 | 보드 | STM32H563_CORE Rev 1 (회로도 `hardware/stm32h563_core_v1.pdf`, 2026-09-15) |
-| 펌웨어 | `firmware/core/stm32h5-fw` — 골격 + LED 점멸. **보드에서 실행 확인** (500 ms 토글, 250 MHz) |
+| 펌웨어 | `firmware/core/stm32h5-fw` — 골격 + LED 점멸 + **UART(VCP) + 로그 + CLI**. 보드에서 동작 확인 |
 | 클럭 | HSE 25 MHz → PLL1 → **250 MHz** (VOS0) |
-| 빌드 | FLASH 8,064 B / 2046 KB (0.38%) — arm-none-eabi-gcc 15.3.1 |
+| 빌드 | FLASH 65,376 B / 2046 KB (3.12%), RAM 11,960 B — arm-none-eabi-gcc 15.3.1 |
 | 툴 | CubeCLT 1.22.0 에서 필요한 것만 `~/ST` 에 추출 (Programmer 2.23.0 / gdbserver 7.14.0). H563 SVD 추가 |
-| 디버거 | ST-LINK V2, FW `V2J47M34` — 굽기·gdb 디버깅 확인. Device ID `0x484` |
+| 디버거 | ST-LINK V2-1, FW `V2J47M34` — 굽기·gdb 디버깅 확인. Device ID `0x484`. **VCP = USART1 (J1)**, 115200 |
 
 ### 바로 다시 시작하기
 
@@ -22,14 +22,19 @@ cmake -S . -B build; cmake --build build -j20
   -c port=SWD mode=UR -w build/stm32h5-fw.bin 0x08000000 -v -rst
 ```
 
+시리얼은 ST-LINK VCP 115200 이다. 프롬프트 `cli# ` 는 첫 입력 뒤에 나온다.
+
 VSCode 에서는 `build-build` / `flash-stlink` 태스크, `Debug FW` / `Attach FW` 런치 구성을 쓴다.
 macOS / Windows 모두 같은 구성이다 → [10](10-dev-environment.md)
 
 ### 다음 작업
 
 1. LED 극성(active low) 눈으로 확인 ([20](20-led.md) 4절)
-2. UART(디버그 커넥터 J1 의 U1_TXD/U1_RXD) + 로그 + CLI
-3. 부트로더 `core/stm32h5-boot` (참고: `stm32h5-w6300/firmware/stm32h5-boot`)
+2. **UART 다운로드 — 부트로더 `core/stm32h5-boot` + 앱 분리** (진행 중. 단순형: BOOT 128 KB + TAG + 앱)
+3. QSPI 플래시 (U3 W25Q256JV 32 MB, OCTOSPI1)
+4. fault 핸들러 + reset 원인 + RTC 백업 레지스터
+5. USB CDC (USB-C 로 CLI / 다운로드)
+6. 슬롯 핑퐁 / 롤백 (w6300 방식, bank2)
 
 ## 폴더 구성
 
@@ -85,6 +90,7 @@ firmware/
 | 문서 | 기능 | 상태 |
 |---|---|---|
 | [20-led.md](20-led.md) | LED (PC13) 500 ms 점멸 | ✅ (극성 눈 확인 남음) |
+| [21-uart-cli.md](21-uart-cli.md) | UART(USART1, ST-LINK VCP) + 로그 + CLI, **TX/RX 스왑**, GPDMA 원형 수신 | ✅ |
 
 ## 출처
 

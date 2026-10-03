@@ -160,5 +160,5 @@ tick=1500 ODR=0x2000
 ## 6. 다음
 
 - [x] 보드에서 LED 실측 (위 4절)
-- [ ] UART (J1 U1_TXD/U1_RXD, PB14/PB15) + `logPrintf` + 부팅 배너
-- [ ] CLI
+- [x] UART (J1 U1_TXD/U1_RXD, PB15/PB14) + `logPrintf` + 부팅 배너 → [21](21-uart-cli.md)
+- [x] CLI → [21](21-uart-cli.md)

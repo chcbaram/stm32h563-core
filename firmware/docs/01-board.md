@@ -53,10 +53,12 @@ LED 저항이 15K 라 전류는 0.1 mA 수준이어서 문제없다.
 | 5 | U1_TXD | PB15 |
 | 6 | U1_RXD | PB14 |
 
-⚠️ U1_TXD / U1_RXD 의 핀 번호는 J1 의 배치를 회로도에서 읽은 값이다. 방향(보드 기준인지 어댑터 기준인지)은
-UART 를 붙이는 단계에서 데이터시트 AF 표와 실측으로 확정한다.
+U1_TXD / U1_RXD 는 **보드 기준 방향**이다 (PB15 가 보드의 TX). USART1 AF4 는 PB14=TX / PB15=RX 라서
+펌웨어는 TX/RX 스왑을 켜서 쓴다 → [21-uart-cli.md](21-uart-cli.md#tx--rx-를-맞바꿔-쓴다-uart_advfeature_swap).
+ST-LINK V2-1 의 VCP 로 받는다.
 
-`hardware/hg-swd-prog_V1.pdf` 가 이 커넥터에 물리는 프로그래머다.
+`hardware/hg-swd-prog_V1.pdf` 는 프로그래머가 아니라 **이 코어보드를 얹는 확장보드**다
+(버튼 4, 부저, 1.3" OLED I2C, microSD, SWD 출력 커넥터 J2/J5).
 
 ---
 

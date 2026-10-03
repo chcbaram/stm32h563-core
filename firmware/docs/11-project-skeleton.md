@@ -45,10 +45,13 @@ firmware/core/stm32h5-fw/
     │   └── startup/              startup_stm32h563xx.s
     ├── common/                   칩 비의존 공통 코드
     │   ├── def.h / err_code.h / evt_code.h
-    │   └── hw/include/           드라이버 공개 헤더 (led.h)
+    │   ├── core/                 qbuffer, util_core
+    │   └── hw/
+    │       ├── include/          드라이버 공개 헤더 (led.h, uart.h, log.h, cli.h)
+    │       └── src/              cli.c
     ├── hw/                       드라이버 계층
     │   ├── hw.c / hw.h / hw_def.h
-    │   └── driver/               led.c
+    │   └── driver/               led.c, uart.c, log.c
     └── lib/ST/                   벤더 소스 (참고 프로젝트에서 복사)
         ├── CMSIS/Include
         ├── CMSIS/Device/ST/STM32H5xx/Include
@@ -178,5 +181,12 @@ Memory region     Used Size  Region Size  %age Used
 
 ## 7. 의도적으로 넣지 않은 것
 
-참고 프로젝트의 UART, 로그, CLI, fault, RTC, reset, flash, USB(CDC/HID), cmd, WIZnet, 부트로더 연동은
+처음에는 참고 프로젝트의 UART, 로그, CLI, fault, RTC, reset, flash, USB(CDC/HID), cmd, WIZnet, 부트로더 연동을
 전부 뺐다. 기능 하나씩 붙이면서 `20~` 번 문서로 남긴다.
+
+| 붙인 것 | 문서 |
+|---|---|
+| LED | [20](20-led.md) |
+| UART + 로그 + CLI | [21](21-uart-cli.md) |
+
+`_write` / SysTick / `delay()` 등 3절 표의 항목 중 UART 관련(`_write`)은 21 에서 되돌렸다.
