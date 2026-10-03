@@ -19,13 +19,36 @@
       "problemMatcher": []
     },
     {
-      // ST-LINK(SWD) 로 0x08000000 에 쓰고 리셋한다. 빌드는 하지 않는다.
-      //   macOS : CubeCLT 에서 필요한 것만 ~/ST 에 추출하고 ~/ST/STM32CubeCLT 링크로 참조한다.
-      //   Windows : 설치 프로그램이 만드는 STM32CLT_PATH 환경변수로 참조한다.
+      // ST-LINK(SWD) 로 앱을 쓰고 리셋한다. TAG 는 PC 에서 계산해 이미지 앞에 붙인다 (0x08040000).
+      //   TAG 가 없으면 부트로더가 앱을 실행하지 않는다. 빌드는 하지 않는다.
       "label": "flash-stlink",
       "type": "shell",
-      "command": "${userHome}/ST/STM32CubeCLT/STM32CubeProgrammer/bin/STM32_Programmer_CLI -c port=SWD mode=UR -w build/stm32h5-fw.bin 0x08000000 -v -rst",
-      "windows": { "command": "& '${env:STM32CLT_PATH}/STM32CubeProgrammer/bin/STM32_Programmer_CLI.exe' -c port=SWD mode=UR -w build/stm32h5-fw.bin 0x08000000 -v -rst" },
+      "command": "python3 tools/flash.py --target fw",
+      "windows": { "command": "python tools/flash.py --target fw" },
+      "problemMatcher": []
+    },
+    {
+      // 빌드한 뒤 SWD 로 쓴다 (런치 Debug FW 의 preLaunchTask)
+      "label": "build-flash",
+      "dependsOrder": "sequence",
+      "dependsOn": ["build-build", "flash-stlink"],
+      "problemMatcher": []
+    },
+    {
+      // UART(ST-LINK VCP) 로 앱을 내려받고 실행한다. 앱이 돌고 있으면 부트로더로 넘긴 뒤 쓴다.
+      //   baram-term 이 포트를 열고 있으면 잠시 놓게 한다. 빌드는 하지 않는다.
+      "label": "download-uart",
+      "type": "shell",
+      "command": "python3 tools/download.py",
+      "windows": { "command": "python tools/download.py" },
+      "problemMatcher": []
+    },
+    {
+      // 포트를 직접 고른다 (Firmware Task Manager 확장이 목록을 띄운다)
+      "label": "download-uart (포트 선택)",
+      "type": "shell",
+      "command": "python3 tools/download.py --port ${input:uartPort}",
+      "windows": { "command": "python tools/download.py --port ${input:uartPort}" },
       "problemMatcher": []
     },
     {
@@ -34,6 +57,17 @@
       "command": "${userHome}/ST/STM32CubeCLT/STM32CubeProgrammer/bin/STM32_Programmer_CLI -c port=SWD mode=UR -rst",
       "windows": { "command": "& '${env:STM32CLT_PATH}/STM32CubeProgrammer/bin/STM32_Programmer_CLI.exe' -c port=SWD mode=UR -rst" },
       "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "uartPort",
+      "type": "command",
+      "command": "firmware-task.pickSerialPort",
+      "args": {
+        "placeholder": "ST-LINK VCP (CLI 포트) 를 고른다",
+        "filter": "usbmodem|ttyACM|COM"
+      }
     }
   ]
 }

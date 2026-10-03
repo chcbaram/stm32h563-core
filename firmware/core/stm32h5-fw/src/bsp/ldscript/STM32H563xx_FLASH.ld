@@ -47,9 +47,11 @@ MEMORY
   NO_INIT   (xrw) : ORIGIN = 0x20000000, LENGTH = 8K
   RAM       (xrw) : ORIGIN = 0x20002000, LENGTH = 640K-8K
 
-  VECTOR     (rx) : ORIGIN = 0x08000000, LENGTH = 1K
-  VER        (rx) : ORIGIN = 0x08000400, LENGTH = 1K
-  FLASH      (rx) : ORIGIN = 0x08000800, LENGTH = 2048K-2K
+  /* 부트로더(0x0800_0000, 256 KB) 뒤. FLASH_ADDR_FIRM = 0x0804_0000 이고 앞 1 KB 는 부트로더가 쓰는 TAG 라
+     앱 이미지는 0x0804_0400 부터 시작한다. TAG 는 앱 bin 에 들어가면 안 된다 (w6300 과 같은 구조). */
+  VECTOR     (rx) : ORIGIN = 0x08040400, LENGTH = 1K
+  VER        (rx) : ORIGIN = 0x08040800, LENGTH = 1K
+  FLASH      (rx) : ORIGIN = 0x08040C00, LENGTH = 448K-3K
 }
 
 /* Sections */
@@ -202,10 +204,10 @@ SECTIONS
     . = ALIGN(4);
   } >NO_INIT
 
-  .fw_flash_end :
-  {
-    _fw_flash_end = .;
-  } >FLASH
+  /* 이미지 끝 = .data 초기값이 플래시에 놓인 끝 (N6 와 같다). bin 크기와 같아야 한다.
+     firm_ver_t.firm_size 로 나가고, 부트로더가 TAG 의 크기·CRC 범위로 쓴다. */
+  _fw_flash_end  = LOADADDR(.data) + SIZEOF(.data);
+  _fw_flash_size = _fw_flash_end - _fw_flash_begin;
 
   /* Remove information from the compiler libraries */
   /DISCARD/ :

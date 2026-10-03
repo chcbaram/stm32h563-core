@@ -3,13 +3,15 @@
 
 
 extern uint32_t _fw_flash_begin;
+extern uint32_t _fw_flash_size;
 
 volatile const firm_ver_t firm_ver __attribute__((section(".version"))) = 
 {
   .magic_number = VERSION_MAGIC_NUMBER,
   .version_str  = _DEF_FIRMWATRE_VERSION,
   .name_str     = _DEF_BOARD_NAME,
-  .firm_addr    = (uint32_t)&_fw_flash_begin
+  .firm_addr    = (uint32_t)&_fw_flash_begin,
+  .firm_size    = (uint32_t)&_fw_flash_size,    // 링커 심볼 값 (C 에서 end - begin 을 계산하면 0 으로 접힌다, N6/weact)
 };
 
 
@@ -37,10 +39,9 @@ bool hwInit(void)
 
   rtcInit();
   resetInit();
+  faultInit();
   flashInit();
   qspiInit();
-
-  logBoot(false);
   
   return true;
 }

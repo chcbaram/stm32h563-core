@@ -47,11 +47,11 @@ w6300 의 `flash.c` 를 그대로 가져왔다 (w6300 앱과 부트로더의 것
 
 ## 3. 레이아웃 (`hw_def.h`)
 
-부트로더를 붙일 때 쓸 주소를 미리 정했다. w6300 과 같다.
+부트로더를 붙일 때 쓸 주소를 미리 정했다. 처음에는 w6300 과 같았고, 부트로더를 256 KB 로 키우며 FIRM 을 옮겼다 ([26](26-bootloader.md) 2 절).
 
 ```c
-#define FLASH_ADDR_BOOT             0x08000000      // 128 KB  부트로더 자리 (지금은 이 앱이 여기서 돈다)
-#define FLASH_ADDR_FIRM             0x08020000      // 448 KB  TAG 1 KB + 앱
+#define FLASH_ADDR_BOOT             0x08000000      // 256 KB  부트로더 (처음에는 128 KB, 26 에서 키웠다)
+#define FLASH_ADDR_FIRM             0x08040000      // 448 KB  TAG 1 KB + 앱
 #define FLASH_ADDR_FIRM_VEC         (FLASH_ADDR_FIRM + FLASH_SIZE_TAG)
 
 //   앱은 실행 중인 뱅크1 전체를 보호한다. 기록은 뱅크2 에만 한다 (w6300 과 같다).
@@ -59,7 +59,7 @@ w6300 의 `flash.c` 를 그대로 가져왔다 (w6300 앱과 부트로더의 것
 #define FLASH_PROTECT_SIZE          (1024*1024)
 ```
 
-부트로더는 보호 범위를 자기 자리(BOOT 128 KB)로 좁힌다. FIRM 을 써야 하기 때문이다.
+부트로더는 보호 범위를 자기 자리(BOOT 256 KB)로 좁힌다. FIRM 을 써야 하기 때문이다.
 
 ---
 
@@ -72,7 +72,7 @@ cli# flash info
 sector size : 8 KB
 bank size   : 1024 KB
 BOOT    : 0x08000000 128 KB
-FIRM    : 0x08020000 448 KB
+FIRM    : 0x08020000 448 KB          <- 부트로더 128 KB 때. 지금은 0x08040000
 PROTECT : 0x08000000 1024 KB
 
 cli# flash erase 0x08100000 8192

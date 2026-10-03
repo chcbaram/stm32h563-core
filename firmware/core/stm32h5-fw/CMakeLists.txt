@@ -32,6 +32,7 @@ file(GLOB SRC_FILES CONFIGURE_DEPENDS
 # 하위폴더에 있는 파일까지 포함한다.
 #
 file(GLOB_RECURSE SRC_FILES_RECURSE CONFIGURE_DEPENDS
+  src/ap/*.c
   src/bsp/*.s
   src/common/*.c
   src/hw/*.c
@@ -69,6 +70,8 @@ add_executable(${EXECUTABLE}
 target_include_directories(${EXECUTABLE} PRIVATE 
   src  
   src/ap
+  src/ap/modules
+  src/ap/modules/cmd
   src/bsp
   src/bsp/device
   src/common
@@ -103,13 +106,13 @@ target_compile_options(${EXECUTABLE} PRIVATE
 
   -Wall
   -g3
-  -O0
+  -Og
   )
 
 set_source_files_properties(
     ${SRC_FILES_SPECIAL}
     PROPERTIES
-        COMPILE_OPTIONS "-O0"
+        COMPILE_OPTIONS "-Og"
 )
 
 target_link_options(${EXECUTABLE} PRIVATE
