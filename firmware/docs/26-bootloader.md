@@ -48,6 +48,7 @@ baram-term : 포트 다시 엶
 | 태스크 `flash-stlink` | fw | `tools/flash.py --target fw` (TAG 붙여 0x0804_0000) |
 | 태스크 `download-uart` | fw | `tools/download.py` (ST-LINK VCP 자동) |
 | 태스크 `download-uart (포트 선택)` | fw | `tools/download.py --port <고른 포트>`. Firmware Task Manager 확장(`firmware-task.pickSerialPort`)이 목록을 띄운다 |
+| 태스크 `download-cdc` / `download-hid` | fw | USB 로 ([27](27-usb.md)) |
 | 런치 `Debug Boot` / `Attach Boot` | boot | 부트로더 디버깅 |
 | 런치 **`Debug FW`** | fw | 빌드 → TAG 붙여 쓰기(`build-flash`) → 리셋 → 부트로더가 앱으로 점프 → **앱 `main` 에서 멈춤** |
 | 런치 `Flash + Attach FW` | fw | `flash-stlink` 로 쓰고 리셋 → 부트로더가 실행한 앱에 attach (멈추지 않고 붙기) |

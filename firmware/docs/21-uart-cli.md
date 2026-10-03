@@ -90,7 +90,7 @@ DMA 버퍼의 캐시 일관성 처리가 필요 없다. ⚠️ RM 으로 다시 
 
 ```c
 #define _USE_HW_UART
-#define      HW_UART_MAX_CH         1
+#define      HW_UART_MAX_CH         1          // 이후 USB CDC 를 채널 2 로 꽂으며 2 ([27](27-usb.md))
 #define      HW_UART_CH_SWD         _DEF_UART1    // 디버그 커넥터 J1 (ST-LINK VCP)
 #define      HW_UART_CH_CLI         HW_UART_CH_SWD
 
@@ -121,7 +121,7 @@ DMA 버퍼의 캐시 일관성 처리가 필요 없다. ⚠️ RM 으로 다시 
 | FLASH | 8,064 B | **65,200 B** |
 | RAM | 1,632 B | **15,016 B** (N6 uart 수신 버퍼 4 KB) |
 
-FLASH 가 크게 는 것은 `-O0` 으로 빌드한 HAL RCC 확장 함수들 때문이다 (UART 클럭 설정이 끌어온다).
+(그때는 `-O0`. 지금은 `-Og` — [26](26-bootloader.md) 2절) FLASH 가 크게 는 것은 `-O0` 으로 빌드한 HAL RCC 확장 함수들 때문이다 (UART 클럭 설정이 끌어온다).
 
 | 심볼 | 크기 |
 |---|---|
@@ -195,6 +195,6 @@ cli# md 0x08000400 4
 
 ## 6. 다음
 
-- [ ] fault 핸들러 — 폴트 원인과 PC 를 로그로 (지금은 무한루프)
-- [ ] reset 원인 / RTC 백업 레지스터
-- [ ] swtimer, 모듈 시스템
+- [x] fault 핸들러 — 폴트 원인과 PC 를 로그로 → [25](25-fault.md)
+- [x] reset 원인 / RTC 백업 레지스터 → [22](22-rtc-reset.md)
+- [x] 모듈 시스템 → [26](26-bootloader.md) (swtimer 는 아직)

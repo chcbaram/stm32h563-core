@@ -14,7 +14,9 @@
 | 빌드 | Homebrew cmake 4.4.3 + `/usr/bin/make` 3.81 ✅ | cmake + MinGW make (`-G 'MinGW Makefiles'`) |
 | CubeCLT | `~/ST/STM32CubeCLT` (필요한 것만 추출, 버전 없는 링크) ✅ | 설치 프로그램 → `STM32CLT_PATH` 환경변수 |
 | SVD | `STM32H563.svd` 추가 추출 ✅ | CubeCLT 에 포함 |
-| 보드 연결 | ✅ ST-LINK V2 (`V2J47M34`) — 굽기, gdbserver 디버깅 | 미확인 |
+| 보드 연결 | ✅ ST-LINK V2-1 (`V2J47M34`) — 굽기, gdbserver 디버깅, VCP | 미확인 |
+| Python | 3.9.6 + pyserial 3.5 + hidapi 0.15.0 ✅ (`flash.py` / `download.py` / `release.py`) | `python` 으로 실행. `pip install pyserial hidapi` |
+| 브라우저 | Chrome (웹페이지 : WebHID / Web Serial / WebUSB) ✅ | Chrome / Edge. ROM DFU 는 WinUSB 드라이버가 필요할 수 있다 |
 
 ---
 
@@ -99,28 +101,37 @@ setx STM32CLT_PATH "C:\ST\STM32CubeCLT_1.22.0"    # VSCode 를 다시 띄워야 
 
 ## 4. VSCode 구성
 
+부트로더(`core/stm32h5-boot`)와 앱(`core/stm32h5-fw`) 프로젝트마다 `.vscode/` 가 있다. 각 프로젝트 폴더(또는 `prj/*.code-workspace`)를 연다.
+툴(`tools/*.py`)도 프로젝트마다 같은 것을 하나씩 둔다 (기본값만 다르다). Windows 에서는 `python` 으로 부른다.
+
 ### 태스크
 
-| 태스크 | 하는 일 |
-|---|---|
-| `build-build` | 구성 + 빌드 (기본 빌드 태스크) |
-| `build-clean` | clean |
-| `flash-stlink` | `STM32_Programmer_CLI` 로 `.bin` 을 0x08000000 에 쓰고 리셋. 빌드는 하지 않는다 |
-| `device-reset` | 리셋만 |
+| 태스크 | boot | fw | 하는 일 |
+|---|---|---|---|
+| `build-build` | ✅ | ✅ | 구성 + 빌드 (기본 빌드 태스크) |
+| `build-clean` | ✅ | ✅ | clean |
+| `flash-stlink` | ✅ | ✅ | SWD 로 쓰고 리셋. boot : `flash.py --target boot` (0x0800_0000), fw : `flash.py --target fw` (TAG 를 붙여 0x0804_0000) |
+| `build-flash` | | ✅ | `build-build` → `flash-stlink` (런치 `Debug FW` 의 preLaunchTask) |
+| `download-uart` | | ✅ | `download.py` — ST-LINK VCP 자동 |
+| `download-uart (포트 선택)` | | ✅ | `download.py --port <고른 포트>` (Firmware Task Manager 확장) |
+| `download-cdc` / `download-hid` | | ✅ | `download.py --via cdc` / `--via hid` (USB) |
+| `device-reset` | ✅ | ✅ | 리셋만 |
 
 참고 프로젝트에 있던 pyocd 태스크는 뺐다. 이 호스트에 pyocd 가 없고, ST-LINK + CubeCLT 로 통일한다.
 
 ### 런치 (cortex-debug, `servertype: stlink`)
 
-| 구성 | 동작 |
-|---|---|
-| `Debug FW` | `build-build` → gdbserver 가 리셋 후 ELF 를 쓰고 → `main` 에서 멈춤 |
-| `Attach FW` | 돌고 있는 보드에 리셋 없이 붙는다. 쓰기 안 함. **보드에서 돌고 있는 것과 같은 ELF 여야 한다** |
-
-H5 는 내장 플래시에서 바로 부팅하므로 N6 처럼 적재 방식(SRAM 적재, `load.sh`)을 따로 둘 필요가 없다.
-cortex-debug 의 launch 가 플래시에 쓰고 리셋하는 것으로 충분하다.
+| 구성 | 프로젝트 | 동작 |
+|---|---|---|
+| `Debug Boot` | boot | `build-build` → gdbserver 가 리셋 후 ELF 를 쓰고 → `main` 에서 멈춤 |
+| `Attach Boot` | boot | 돌고 있는 부트로더에 리셋 없이 붙는다 |
+| `Debug FW` | fw | `build-flash`(TAG 를 붙여 씀) → 리셋 → 부트로더가 앱으로 점프 → 앱 `main` 에서 멈춤. **`loadFiles: []`** — 디버거가 ELF 를 쓰면 TAG 가 든 첫 섹터를 지운다 ([26](26-bootloader.md)) |
+| `Flash + Attach FW` | fw | `flash-stlink` → 리셋 → 부트로더가 실행한 앱에 attach |
+| `Attach FW` | fw | 돌고 있는 앱에 붙기만. 보드에서 돌고 있는 것과 같은 ELF 여야 한다 |
 
 `c_cpp_properties.json` 은 `build/compile_commands.json` 을 쓰므로 OS 와 무관하다.
+
+> 처음에는 부트로더 없이 앱 하나였고 `flash-stlink` 가 0x0800_0000 에 썼다. 부트로더를 붙이며 지금 구성이 됐다.
 
 ---
 
@@ -171,5 +182,5 @@ Transfer rate: 10 KB/sec
 - [x] macOS 빌드
 - [x] ST-LINK 연결, Device ID 확인 (`0x484`)
 - [x] 굽기 (`flash-stlink` 명령), gdbserver + gdb 로 load / 브레이크
-- [ ] VSCode 에서 `Debug FW`, `Attach FW` 직접 실행
+- [ ] VSCode 에서 `Debug FW` / `Attach FW` / `download-*` 직접 실행 (gdb · 명령줄로는 확인)
 - [ ] Windows 빌드 / 디버그

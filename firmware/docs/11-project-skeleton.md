@@ -7,8 +7,9 @@
 
 ## 1. 전제 — 부트로더 없이 시작했다
 
-> 이후 부트로더를 붙여 앱은 **0x0802_0400** 에서 시작한다 → [26-bootloader.md](26-bootloader.md).
-> 아래 4 절의 링커 주소는 부트로더 이전 기록이다.
+> 이 문서는 **처음 골격을 만들 때**의 기록이다. 지금은 부트로더(`core/stm32h5-boot`, 0x0800_0000, 256 KB) 와
+> 앱(`core/stm32h5-fw`, **0x0804_0400**) 으로 나뉘었다 → [26-bootloader.md](26-bootloader.md).
+> 2 절의 디렉터리 구조는 지금 것으로 고쳐 두었다. 3 · 4 절의 주소 · 표는 처음 기록이다.
 
 참고 프로젝트는 부트로더(`stm32h5-boot`, 0x08000000 128 KB) 뒤에 앱이 놓이는 구조다.
 여기서는 아직 부트로더가 없으므로 **앱이 0x08000000 에서 바로 시작**한다.
@@ -24,68 +25,76 @@
 
 ---
 
-## 2. 디렉터리 구조
+## 2. 디렉터리 구조 (지금)
+
+부트로더와 앱 프로젝트는 같은 레이어 구조이고, 드라이버 / USB / cmd 파일 대부분이 같은 내용이다.
 
 ```
-firmware/core/stm32h5-fw/
-├── CMakeLists.txt
-├── .clang-format                 참고 프로젝트에서 그대로
-├── .vscode/
-│   ├── tasks.json                build / flash 태스크 (macOS + Windows)
-│   ├── launch.json               cortex-debug (CubeCLT, 버전 없는 경로)
-│   └── c_cpp_properties.json
-├── prj/stm32h5-fw.code-workspace   이 프로젝트 폴더를 연다
+firmware/core/stm32h5-fw/          (stm32h5-boot 도 같은 모양)
+├── CMakeLists.txt                 PRJ_NAME 만 다르다. -Og, TinyUSB
+├── .clang-format
+├── .vscode/                       tasks / launch / c_cpp_properties ([10](10-dev-environment.md) 4절)
+├── prj/stm32h5-fw.code-workspace
 ├── tools/
-│   └── arm-none-eabi-gcc.cmake   툴체인 정의 (N6 프로젝트 것)
+│   ├── arm-none-eabi-gcc.cmake    툴체인 정의 (N6 것)
+│   ├── flash.py                   SWD 쓰기 (fw 는 TAG 를 PC 에서 붙인다)
+│   ├── download.py, cmdproto.py   UART / USB CDC / USB HID 다운로드
+│   └── release.py                 web/bin 에 이미지 + manifest
 └── src/
     ├── main.c / main.h
-    ├── ap/                       애플리케이션 로직
-    │   └── ap.c / ap.h / ap_def.h
-    ├── bsp/                      보드/칩 초기화
-    │   ├── bsp.c / bsp.h         클럭, 캐시, MPU, delay, Error_Handler
-    │   ├── device/               ST 제공 파일 (hal_conf, it, system, msp, syscalls)
-    │   ├── ldscript/             STM32H563xx_FLASH.ld
-    │   └── startup/              startup_stm32h563xx.s
-    ├── common/                   칩 비의존 공통 코드
+    ├── ap/
+    │   ├── ap.c / ap.h / ap_def.h        apInit = moduleInit(), apMain = LED + moduleUpdate()
+    │   └── modules/
+    │       ├── module.c / module.h       MODULE_DEF 자기 등록 (.module 섹션)
+    │       ├── boot/                     (부트로더만) 앱 판정 · 점프, boot CLI
+    │       ├── cmd/                      cmd 채널 UART / CDC / HID, cmd_boot (부트로더 / 앱이 다르다)
+    │       └── common/
+    │           ├── cli/cli.c             CLI 모듈 (UART ↔ CDC 전환)
+    │           └── usb/usb_task.c        USB 모듈 (TinyUSB tud_task)
+    ├── bsp/
+    │   ├── bsp.c / bsp.h                 클럭, 캐시, MPU, delay, (부트로더) bspDeInit
+    │   ├── device/                       hal_conf, it (폴트 진입부), system, msp, syscalls
+    │   ├── ldscript/STM32H563xx_FLASH.ld 부트로더 0x0800_0000 / 앱 0x0804_0400
+    │   └── startup/startup_stm32h563xx.s
+    ├── common/
     │   ├── def.h / err_code.h / evt_code.h
-    │   ├── core/                 qbuffer, util_core
-    │   └── hw/
-    │       ├── include/          드라이버 공개 헤더 (led.h, uart.h, log.h, cli.h)
-    │       └── src/              cli.c
-    ├── hw/                       드라이버 계층
+    │   ├── core/                         qbuffer, util_core
+    │   └── hw/include/ · hw/src/         드라이버 공개 헤더, cli.c
+    ├── hw/
     │   ├── hw.c / hw.h / hw_def.h
-    │   └── driver/               led.c, uart.c, log.c
-    └── lib/ST/                   벤더 소스 (참고 프로젝트에서 복사)
-        ├── CMSIS/Include
-        ├── CMSIS/Device/ST/STM32H5xx/Include
-        └── STM32H5xx_HAL_Driver/{Inc,Src}
+    │   └── driver/                       led, uart, log, rtc, reset, fault, flash, qspi, cdc, cmd, usb/
+    └── lib/
+        ├── ST/                           CMSIS, STM32H5xx HAL 1.5.0
+        └── tinyusb/                      TinyUSB 0.18.0
 ```
 
-호출 흐름은 참고 프로젝트와 같다. RTOS 분기는 뺐다.
+호출 흐름:
 
 ```
 main() -> bspInit()   HAL, 클럭, I/D 캐시, MPU
-       -> hwInit()    드라이버 초기화 (led)
-       -> apInit()
-       -> apMain()    무한 루프
+       -> hwInit()    드라이버 (cli, log, led, uart, rtc, reset, fault, flash, qspi)
+       -> apInit()    (부트로더) bootUp() — 앱으로 점프하거나 머문다
+                      moduleInit() — usb, cli, (boot), cmd 모듈
+       -> apMain()    LED + moduleUpdate()
 ```
 
-`hw_def.h` 의 `_USE_HW_xxx` / `HW_xxx_MAX_CH` 로 드라이버를 켜고 끄는 방식도 그대로다.
+`hw_def.h` 의 `_USE_HW_xxx` / `HW_xxx_MAX_CH` 로 드라이버를 켜고 끄는 방식은 그대로다.
 
 ---
 
-## 3. 참고 프로젝트에서 바꾼 것
+## 3. 처음 골격에서 참고 프로젝트와 다르게 한 것
 
-| 항목 | 참고 프로젝트 | 여기 | 이유 |
-|---|---|---|---|
-| 시작 주소 | 0x08020400 (부트로더 뒤) | **0x08000000** | 부트로더 없음 |
-| startup | `startup_stm32h562xx.s` | **`startup_stm32h563xx.s`** (참고 저장소의 `stm32h5-cube` 에서) | 아래 3.1 |
-| 폴트 핸들러 | asm → `faultReset()` 로 원인 기록 | 기본 무한루프 | fault 드라이버를 아직 안 넣었다 |
-| `_write` (printf) | `uartWrite()` | 버림 | UART 를 아직 안 넣었다 |
-| SysTick | `HAL_IncTick()` + `swtimerISR()` | `HAL_IncTick()` 만 | swtimer 를 아직 안 넣었다 |
-| `delay()` | 기다리는 동안 `cliLoopIdle()` | `HAL_Delay()` | CLI 를 아직 안 넣었다 |
-| HAL 모듈 | + XSPI, RTC, UART, PCD | GPIO, EXTI, DMA, RCC, FLASH, PWR, CORTEX, ICACHE, DCACHE | 쓰는 것만 |
-| 툴체인 cmake | 원본 | N6 프로젝트 것 | [10](10-dev-environment.md) 2절 |
+| 항목 | 참고 프로젝트 | 처음 골격 | 이유 | 지금 |
+|---|---|---|---|---|
+| 시작 주소 | 0x08020400 (부트로더 뒤) | 0x08000000 | 부트로더 없음 | 앱 0x0804_0400 ([26](26-bootloader.md)) |
+| startup | `startup_stm32h562xx.s` | **`startup_stm32h563xx.s`** (참고 저장소의 `stm32h5-cube` 에서) | 아래 3.1 | 그대로 |
+| 폴트 핸들러 | asm → `faultReset()` 로 원인 기록 | 기본 무한루프 | fault 드라이버를 아직 안 넣었다 | naked 진입부 + `faultReset()` ([25](25-fault.md)) |
+| `_write` (printf) | `uartWrite()` | 버림 | UART 를 아직 안 넣었다 | `log.c` 가 로그 채널로 ([21](21-uart-cli.md)) |
+| SysTick | `HAL_IncTick()` + `swtimerISR()` | `HAL_IncTick()` 만 | swtimer 를 아직 안 넣었다 | 그대로 |
+| `delay()` | 기다리는 동안 `cliLoopIdle()` | `HAL_Delay()` | CLI 를 아직 안 넣었다 | 그대로 |
+| HAL 모듈 | + XSPI, RTC, UART, PCD | GPIO, EXTI, DMA, RCC, FLASH, PWR, CORTEX, ICACHE, DCACHE | 쓰는 것만 | + UART, RTC, XSPI (PCD 대신 TinyUSB) |
+| 툴체인 cmake | 원본 | N6 프로젝트 것 | [10](10-dev-environment.md) 2절 | 그대로 |
+| 최적화 | `-O0` | `-O0` | | `-Og` ([26](26-bootloader.md) 2절) |
 
 ### 3.1 startup 파일이 H562 용이었다
 
